@@ -21,6 +21,7 @@ class PCBAnalyzerApp extends StatefulWidget {
 class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   PCBBoard? currentBoard;
   int _currentIndex = 0;
+  Component? _draggingComponent;
   final MeasurementService measurementService = MeasurementService();
   final ImageProcessor imageProcessor = ImageProcessor();
   final MCPServer mcpServer = MCPServer(baseUrl: 'http://localhost:8080');
@@ -40,18 +41,9 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         appBar: AppBar(
           title: Text('PCB Analyzer'),
           actions: [
-            IconButton(
-              icon: Icon(Icons.save),
-              onPressed: _saveProject,
-            ),
-            IconButton(
-              icon: Icon(Icons.folder_open),
-              onPressed: _openProject,
-            ),
-            IconButton(
-              icon: Icon(Icons.share),
-              onPressed: _exportNetlist,
-            ),
+            IconButton(icon: Icon(Icons.folder_open), onPressed: _openProject),
+            IconButton(icon: Icon(Icons.save), onPressed: _saveProject),
+            IconButton(icon: Icon(Icons.share), onPressed: _exportNetlist),
           ],
         ),
         body: Row(
@@ -70,11 +62,13 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
               flex: 5,
               child: PCBViewerPanel(
                 board: currentBoard,
+                draggingComponent: _draggingComponent,
                 currentIndex: _currentIndex,
                 onImageDrop: _handleImageDrop,
                 onNext: () {
                   setState(() {
-                    if (currentBoard != null && _currentIndex < currentBoard!.images.length - 1) {
+                    if (currentBoard != null &&
+                        _currentIndex < currentBoard!.images.length - 1) {
                       _currentIndex++;
                     }
                   });
@@ -87,6 +81,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                   });
                 },
                 onImageModification: _updateImageModification,
+                onTap: _handleTap,
               ),
             ),
 
@@ -146,10 +141,43 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   }
 
   void _addMeasurement(String type, dynamic value) {
-    // Add measurement to service
-    setState(() {
-      // Update UI
-    });
+    if (value is Map<String, dynamic>) {
+      // It's a new component
+      final newComponent = Component(
+        id: value['name'],
+        type: value['type'],
+        value: value['value'],
+        position: Position(x: 100, y: 100), // Default position
+        pins: {},
+        layer: 'top',
+      );
+      setState(() {
+        _draggingComponent = newComponent;
+      });
+    } else {
+      // It's a regular measurement
+      // Add measurement to service
+      setState(() {
+        // Update UI
+      });
+    }
+  }
+
+  void _handleTap(Offset position) {
+    if (_draggingComponent != null) {
+      setState(() {
+        final newComponent = Component(
+          id: _draggingComponent!.id,
+          type: _draggingComponent!.type,
+          value: _draggingComponent!.value,
+          position: Position(x: position.dx, y: position.dy),
+          pins: _draggingComponent!.pins,
+          layer: _draggingComponent!.layer,
+        );
+        currentBoard?.components[newComponent.id] = newComponent;
+        _draggingComponent = null;
+      });
+    }
   }
 
   void _updateImageModification(ImageModification mod) {

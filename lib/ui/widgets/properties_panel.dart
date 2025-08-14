@@ -20,34 +20,43 @@ class PropertiesPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Measurements', style: Theme.of(context).textTheme.headlineSmall),
+          Text(
+            'Measurements',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
           SizedBox(height: 16),
-          
+
           // Measurement input forms
           ElevatedButton.icon(
             icon: Icon(Icons.electrical_services),
-            label: Text('Add Resistance'),
-            onPressed: () => _showMeasurementDialog(context, 'resistance'),
+            label: Text('Add Resistor'),
+            onPressed: () => _showComponentDialog(context, 'Resistor'),
           ),
-          
           SizedBox(height: 8),
-          
+          ElevatedButton.icon(
+            icon: Icon(Icons.electrical_services),
+            label: Text('Add Capacitor'),
+            onPressed: () => _showComponentDialog(context, 'Capacitor'),
+          ),
+
+          SizedBox(height: 8),
+
           ElevatedButton.icon(
             icon: Icon(Icons.flash_on),
             label: Text('Add Voltage'),
             onPressed: () => _showMeasurementDialog(context, 'voltage'),
           ),
-          
+
           SizedBox(height: 8),
-          
+
           ElevatedButton.icon(
             icon: Icon(Icons.link),
             label: Text('Test Continuity'),
             onPressed: () => _showMeasurementDialog(context, 'continuity'),
           ),
-          
+
           Divider(height: 32),
-          
+
           // Display recent measurements
           Expanded(
             child: ListView(
@@ -83,13 +92,9 @@ class PropertiesPanel extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              decoration: InputDecoration(labelText: 'Point 1'),
-            ),
+            TextField(decoration: InputDecoration(labelText: 'Point 1')),
             if (type != 'voltage')
-              TextField(
-                decoration: InputDecoration(labelText: 'Point 2'),
-              ),
+              TextField(decoration: InputDecoration(labelText: 'Point 2')),
             TextField(
               decoration: InputDecoration(labelText: 'Value'),
               keyboardType: TextInputType.number,
@@ -106,6 +111,50 @@ class PropertiesPanel extends StatelessWidget {
             onPressed: () {
               // Add measurement
               onMeasurementAdded(type, 0); // Pass actual values
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showComponentDialog(BuildContext context, String type) {
+    final nameController = TextEditingController();
+    final valueController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Add $type'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(labelText: 'Name (e.g. R1)'),
+            ),
+            TextField(
+              controller: valueController,
+              decoration: InputDecoration(labelText: 'Value (e.g. 10k)'),
+              keyboardType: TextInputType.text,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          ElevatedButton(
+            child: Text('Add'),
+            onPressed: () {
+              final componentData = {
+                'type': type,
+                'name': nameController.text,
+                'value': valueController.text,
+              };
+              onMeasurementAdded(type.toLowerCase(), componentData);
               Navigator.pop(context);
             },
           ),

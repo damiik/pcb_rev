@@ -10,19 +10,23 @@ import '../../models/pcb_models.dart';
 
 class PCBViewerPanel extends StatefulWidget {
   final PCBBoard? board;
+  final Component? draggingComponent;
   final int currentIndex;
   final Function(List<String>) onImageDrop;
   final VoidCallback onNext;
   final VoidCallback onPrevious;
   final Function(ImageModification) onImageModification;
+  final Function(Offset)? onTap;
 
   PCBViewerPanel({
     this.board,
+    this.draggingComponent,
     required this.currentIndex,
     required this.onImageDrop,
     required this.onNext,
     required this.onPrevious,
     required this.onImageModification,
+    this.onTap,
   });
 
   @override
@@ -33,6 +37,7 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   TransformationController _transformController = TransformationController();
+  Offset? _mousePosition;
   ViewMode _viewMode = ViewMode.image;
   bool _showComponents = true;
   bool _showNets = true;
@@ -47,12 +52,16 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _currentModification =
-        widget.board?.imageModifications[widget
-            .board
-            ?.images[widget.currentIndex]
-            .id] ??
-        ImageModification();
+    if (widget.board != null && widget.board!.images.isNotEmpty) {
+      _currentModification =
+          widget.board?.imageModifications[widget
+              .board
+              ?.images[widget.currentIndex]
+              .id] ??
+          ImageModification();
+    } else {
+      _currentModification = ImageModification();
+    }
   }
 
   @override
@@ -220,40 +229,63 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
   }
 
   Widget _buildViewer() {
-    return InteractiveViewer(
-      transformationController: _transformController,
-      minScale: 0.1,
-      maxScale: 10.0,
-      child: Stack(
-        children: [
-          // Background grid
-          if (_viewMode != ViewMode.image)
-            CustomPaint(
-              size: MediaQuery.of(context).size,
-              painter: GridPainter(),
-            ),
-
-          // PCB Image layer
-          if (_viewMode != ViewMode.schematic &&
-              widget.board!.images.isNotEmpty)
-            _buildImageLayer(),
-
-          // Schematic rendering layer
-          if (_viewMode != ViewMode.image)
-            CustomPaint(
-              size: MediaQuery.of(context).size,
-              painter: SchematicPainter(
-                board: widget.board!,
-                showComponents: _showComponents,
-                showNets: _showNets,
-                selectedComponent: _selectedComponent,
-                selectedNet: _selectedNet,
+    return Listener(
+      onPointerMove: (event) {
+        if (widget.draggingComponent != null) {
+          setState(() {
+            _mousePosition = _transformController.toScene(event.localPosition);
+          });
+        }
+      },
+      child: InteractiveViewer(
+        transformationController: _transformController,
+        minScale: 0.1,
+        maxScale: 10.0,
+        child: Stack(
+          children: <Widget>[
+            // Background grid
+            if (_viewMode != ViewMode.image)
+              CustomPaint(
+                size: MediaQuery.of(context).size,
+                painter: GridPainter(),
               ),
-            ),
 
-          // Interactive overlay
-          if (_showAnnotations) _buildInteractiveOverlay(),
-        ],
+            // PCB Image layer
+            if (_viewMode != ViewMode.schematic &&
+                widget.board!.images.isNotEmpty)
+              _buildImageLayer(),
+
+            // Schematic rendering layer
+            if (_viewMode != ViewMode.image)
+              CustomPaint(
+                size: MediaQuery.of(context).size,
+                painter: SchematicPainter(
+                  board: widget.board!,
+                  draggingComponent: widget.draggingComponent,
+                  mousePosition: _mousePosition,
+                  showComponents: _showComponents,
+                  showNets: _showNets,
+                  selectedComponent: _selectedComponent,
+                  selectedNet: _selectedNet,
+                ),
+              ),
+
+            // Interactive overlay
+            if (_showAnnotations) _buildInteractiveOverlay(),
+
+            GestureDetector(
+              onTapUp: (details) {
+                if (widget.onTap != null) {
+                  final localPosition = _transformController.toScene(
+                    details.localPosition,
+                  );
+                  widget.onTap!(localPosition);
+                }
+              },
+              child: Container(color: Colors.transparent),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -551,6 +583,8 @@ class GridPainter extends CustomPainter {
 // Schematic renderer
 class SchematicPainter extends CustomPainter {
   final PCBBoard board;
+  final Component? draggingComponent;
+  final Offset? mousePosition;
   final bool showComponents;
   final bool showNets;
   final Component? selectedComponent;
@@ -558,6 +592,8 @@ class SchematicPainter extends CustomPainter {
 
   SchematicPainter({
     required this.board,
+    this.draggingComponent,
+    this.mousePosition,
     required this.showComponents,
     required this.showNets,
     this.selectedComponent,
@@ -574,6 +610,19 @@ class SchematicPainter extends CustomPainter {
     // Draw components on top
     if (showComponents) {
       _drawComponents(canvas);
+    }
+
+    // Draw dragging component
+    if (draggingComponent != null && mousePosition != null) {
+      final newPosition = Component(
+        id: draggingComponent!.id,
+        type: draggingComponent!.type,
+        value: draggingComponent!.value,
+        position: Position(x: mousePosition!.dx, y: mousePosition!.dy),
+        pins: draggingComponent!.pins,
+        layer: draggingComponent!.layer,
+      );
+      _drawComponent(canvas, newPosition);
     }
   }
 
