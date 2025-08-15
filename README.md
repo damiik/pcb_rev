@@ -8,8 +8,13 @@ PCBRev to aplikacja Flutter, której celem jest wspieranie inżynierii odwrotnej
 
 Aplikacja ma za zadanie ułatwić proces rekonstrukcji schematu urządzenia elektronicznego poprzez:
 - **Pomiary komponentów i połączeń:** Rejestrowanie wartości komponentów (np. rezystancji, pojemności) oraz śledzenie połączeń między nimi za pomocą omomierza lub innych narzędzi pomiarowych.
-- **Analiza wizualna PCB:** Przetwarzanie zdjęć płytek PCB (zarówno strony komponentów, jak i strony połączeń) w celu dopasowania ich i wnioskowania o połączeniach między komponentami/wyprowadzeniami.
+- **Analiza wizualna PCB:** Przetwarzanie zdjęć płytek PCB (zarówno strony komponentów, jak i strony połączeń) w celu dopasowania ich i wnioskowania o połączeniach między komponentami/wyprowadzeniami. Kluczowym elementem jest możliwość odwrócenia poziomego strony połączeń (dolnej) i nałożenia jej na stronę komponentów (górnej), co pozwala na wizualizację połączeń między warstwami płytki.
 - **Wsparcie AI:** Wykorzystanie sztucznej inteligencji (za pośrednictwem `mcp-server`) do interpretacji połączeń, identyfikacji komponentów i analizy architektury urządzenia. AI otrzymuje bazę danych z aktualnymi danymi urządzenia, jego połączeniami, architekturą i obrazami, a następnie aktualizuje tę bazę.
+
+
+
+
+
 
 ### 1.2. Platforma Docelowa
 
@@ -18,7 +23,7 @@ Aplikacja jest rozwijana w technologii Flutter, co umożliwia jej działanie na 
 ### 1.3. Kluczowe Funkcje
 
 - **Zarządzanie obrazami PCB:** Wczytywanie i wyświetlanie zdjęć PCB (strona komponentów, strona połączeń).
-- **Narzędzia do edycji obrazu:** Obracanie, odwracanie (poziome/pionowe), regulacja kontrastu, jasności i inwersja kolorów dla lepszej analizy wizualnej.
+- **Narzędzia do edycji obrazu:** Obracanie, odwracanie (poziome/pionowe - kluczowe dla nałożenia strony połączeń na stronę komponentów), regulacja kontrastu, jasności i inwersja kolorów dla lepszej analizy wizualnej.
 - **Rejestrowanie pomiarów:** Moduł do wprowadzania i zarządzania pomiarami rezystancji, napięcia i ciągłości.
 - **Modelowanie schematu:** Tworzenie i aktualizowanie cyfrowego modelu PCB, zawierającego komponenty, piny i połączenia (netlistę).
 - **Integracja z AI (MCP Server):** Dwukierunkowa komunikacja z zewnętrznym serwerem AI, wysyłając dane PCB i obrazy do analizy oraz odbierając wyniki.
@@ -122,7 +127,8 @@ pcb_rev/
 │       └── widgets/
 │           ├── component_list_panel.dart
 │           ├── pcb_viewer_panel.dart
-│           └── properties_panel.dart
+│           ├── properties_panel.dart
+│           └── schematic_painter.dart
 ├── pubspec.yaml
 ├── README.md
 ... (pozostałe pliki projektu Flutter)
@@ -197,9 +203,43 @@ flutter run -d linux # lub inne dostępne urządzenie, np. chrome, windows, maco
 
 ## 5. Dalszy Rozwój
 
-- **Rozbudowa analizy AI:** Implementacja rzeczywistej logiki analizy w `mcp_server` i integracja z modelem AI.
-- **Wyrównywanie obrazów:** Rozwinięcie funkcji `alignImages` w `ImageProcessor` do precyzyjnego dopasowywania obrazów.
+- **Rozbudowa analizy AI:** Implementacja rzeczywistej logiki analizy w `mcp_server` i integracja z modelem AI do inkrementalnej budowy schematu na podstawie analizy połączeń między komponentami.
+- **Wyrównywanie i nałożenie obrazów:** Rozwinięcie funkcji `alignImages` w `ImageProcessor` do precyzyjnego dopasowywania obrazów, w tym odwrócenia poziomego strony połączeń (dolnej) i nałożenia jej na stronę komponentów (górnej) w celu wizualizacji połączeń między warstwami płytki.
 - **Interaktywne adnotacje:** Umożliwienie użytkownikowi dodawania, edytowania i usuwania adnotacji bezpośrednio na obrazie PCB.
 - **Generowanie netlisty:** Rozbudowa funkcji eksportu do standardowych formatów netlist (np. SPICE, KiCad).
 - **Walidacja schematu:** Implementacja narzędzi do automatycznej weryfikacji poprawności rekonstruowanego schematu.
 - **Wsparcie dla wielu warstw PCB:** Rozszerzenie modelu danych i UI o obsługę wielowarstwowych płytek.
+
+
+## 6. Dodatkowy opis
+
+1 . UI
+
+The left panel has components & connections list grouped with components types like resistors, capacitors etc. The center panel is a pictures view or pcb schematic view (depend from mode). The pictures have a flag "permanent" to view them toghether with other pictures. The right panel "Measurements" is provided for general operations.
+
+2 . Create pcb schematic procedure
+
+- uploading pictures of pcb
+- adding components to the list of pcb components
+- added component is dragged to the pcb schematic position (view mode is changed to the *pcb schematic*). Inputs and outputs of component have *connection points* that have to be always "glued" to the grid on the pcb schematic view.
+- adding connections "nets" to the list of connections "nets", net connections connect some connection points - componet connection points or net connection points, every connection net have also list of interconnections points with it's points coordinations on the pcb schematic (not functional, creating only net shape view.
+- you can select component from the left panel and add this component to the current image. (so every image have to have its own component list (as reference to the pcb schematic componets) together with component connection points coordinations specific for every image)
+- you can select connection net from the left panel and add this net to the current image. (so every image have to have its own nets connection points coordinations specific for this image as well as interconnections list for net connection with points interconnection coordinations specific for this image)
+
+3 . Net points (with interconnection points) coordinations
+
+Net N1 connection points N1.1, N1.2, N1.3, N1.4 marked as `*`
+Resistor R1 connection points R1.1, R1.2 marked as `*`
+Net N1 interconnection points marked as `/`
+PCB Schematic View: 
+*N1--/--/--*N1.2---/----*R1.1-(R1)-*R1.2-//--*N1.3 
+           |
+           |
+           *N1.4
+
+have in image reference to net N1 but with different points coordinations for every point, and differnet number of interconnections points with coordinations specific for this image: 
+Image Specific View: 
+*N1/-/-/---*N1.2---/-/-/-*R1.1-(R1)-*R1.2---/-*N1.3
+           |
+           |
+           *N1.4
