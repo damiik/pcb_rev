@@ -104,11 +104,59 @@ graph TD
     U --> R;
 ```
 
-## 3. Szczegóły Implementacji (Aktualny Stan)
+## 3. Koncepcja Pracy i Model Danych (Workflow)
+
+Aplikacja PCBRev jest zaprojektowana wokół interaktywnego procesu tworzenia schematu, inspirowanego standardami oprogramowania CAD, takiego jak KiCad. Poniżej opisano kluczowe koncepcje przepływu pracy oraz model danych, który leży u podstaw aplikacji.
+
+### 3.1. Interfejs Użytkownika
+
+Główny interfejs aplikacji jest podzielony na trzy panele, aby zapewnić efektywną organizację pracy:
+- **Panel Lewy (Listy Globalne):** Zawiera listę wszystkich zidentyfikowanych komponentów oraz sieci (połączeń) w projekcie. Listy te są globalne dla całego projektu i pogrupowane według typów (np. rezystory, kondensatory).
+- **Panel Centralny (Widok Roboczy):** Jest to główny obszar roboczy, który może działać w dwóch trybach:
+    - **Widok Obrazu:** Wyświetla załadowane zdjęcia PCB, umożliwiając ich analizę i nakładanie adnotacji.
+    - **Widok Schematu:** Działa jak edytor schematów, na którym użytkownik może umieszczać symbole komponentów i rysować połączenia.
+- **Panel Prawy (Właściwości i Pomiary):** Służy do wyświetlania szczegółów zaznaczonego elementu oraz do zarządzania operacjami ogólnymi, takimi jak wprowadzanie wyników pomiarów.
+
+### 3.2. Proces Tworzenia Schematu
+
+Proces rekonstrukcji schematu jest iteracyjny i opiera się na poniższych krokach:
+
+1.  **Dodawanie Obrazów:** Użytkownik rozpoczyna od załadowania zdjęć płytki PCB.
+2.  **Identyfikacja Komponentów:** Na podstawie analizy wizualnej i pomiarów, użytkownik dodaje komponenty do globalnej listy w lewym panelu.
+3.  **Tworzenie Schematu:** Użytkownik przełącza się na widok schematu. Komponenty z globalnej listy można przeciągać na obszar roboczy jako symbole. Każdy symbol posiada punkty połączeń (piny), które przyciągane są do siatki, co ułatwia precyzyjne rysowanie.
+4.  **Definiowanie Połączeń (Netów):** Użytkownik rysuje połączenia (linie - *wires*) pomiędzy pinami komponentów lub innymi połączeniami. Każde narysowane połączenie tworzy lub aktualizuje logiczną sieć (*Net*) w globalnej netliście projektu.
+
+### 3.3. Model Danych Inspirowany KiCad
+
+Kluczowym elementem architektury jest rozdzielenie **modelu logicznego** od jego **reprezentacji wizualnej**.
+
+-   **Model Logiczny (Globalny):**
+    -   **Net (Sieć):** Reprezentuje logiczne połączenie między co najmniej dwoma punktami (pinami komponentów). Jest to abstrakcyjny zbiór węzłów, podobnie jak w netliście KiCad. Przykładowo, sieć `VCC` łączy wszystkie piny, które mają być podłączone do zasilania.
+        ```
+        (net (code 1) (name "VCC")
+          (node (ref V1) (pin 1))
+          (node (ref R1) (pin 1))
+          (node (ref U1) (pin 1)))
+        ```
+    -   **Component (Komponent):** Globalna definicja komponentu, zawierająca jego ID, typ, wartość i listę pinów.
+
+-   **Reprezentacja Wizualna (Lokalna dla Widoku):**
+    -   Każdy widok (czy to schemat, czy obraz PCB) posiada własną listę elementów wizualnych, które odnoszą się do modelu logicznego. Oznacza to, że **każdy obraz ma własną listę komponentów** (będących referencjami do listy globalnej), gdzie każdy komponent ma określone, lokalne współrzędne dla swoich punktów połączeń (pinów). Podobnie, **każdy obraz posiada własną listę wizualnych reprezentacji sieci**, które odnoszą się do globalnej netlisty, ale posiadają niezależne współrzędne dla węzłów i przewodów, tworząc jedynie wizualny kształt połączenia na danym obrazie.
+    -   **Symbol:** Wizualna reprezentacja komponentu na schemacie, posiadająca współrzędne (`at`), referencję (`ref`) i inne atrybuty graficzne.
+    -   **Wire (Przewód):** Linia graficzna łącząca punkty na schemacie. Posiada współrzędne (`pts`) definiujące jej kształt.
+    -   **Junction (Węzeł):** Punkt graficzny wskazujący na połączenie kilku przewodów.
+        ```
+        (symbol (lib_id "Power:VCC") (at 100 50 0) (ref "V1") ...)
+        (wire (pts (xy 100 50) (xy 120 50)))
+        (junction (at 120 50))
+        ```
+    - Taki podział pozwala na elastyczność: ta sama logiczna sieć `VCC` może być inaczej narysowana na schemacie, a inaczej reprezentowana jako adnotacja na zdjęciu PCB. Użytkownik może dodawać komponenty i sieci z globalnej listy do dowolnego widoku, a ich pozycja i wygląd będą zapisane lokalnie dla tego widoku, nie wpływając na inne.
+
+## 4. Szczegóły Implementacji (Aktualny Stan)
 
 Projekt jest w fazie aktywnego rozwoju, a poniżej przedstawiono kluczowe aspekty obecnej implementacji.
 
-### 3.1. Struktura Projektu
+### 4.1. Struktura Projektu
 
 ```
 pcb_rev/
@@ -134,7 +182,7 @@ pcb_rev/
 ... (pozostałe pliki projektu Flutter)
 ```
 
-### 3.2. Modele Danych (`lib/models/`)
+### 4.2. Modele Danych (`lib/models/`)
 
 Wszystkie modele danych posiadają implementacje metod `toJson()` oraz fabryk `fromJson()`, co umożliwia łatwą serializację i deserializację obiektów do formatu JSON, niezbędnego do zapisu/odczytu projektu oraz komunikacji z AI.
 
@@ -153,7 +201,7 @@ Wszystkie modele danych posiadają implementacje metod `toJson()` oraz fabryk `f
 - `image_modification.dart`:
     - `ImageModification`: Przechowuje wszystkie parametry modyfikacji wizualnych dla danego obrazu: `rotation` (stopnie), `flipHorizontal`, `flipVertical`, `contrast` (-1 do 1), `brightness` (-1 do 1), `invertColors`.
 
-### 3.3. Serwisy (`lib/services/`)
+### 4.3. Serwisy (`lib/services/`)
 
 - `image_processor.dart`:
     - `enhanceImage(String imagePath)`: Funkcja do wstępnego przetwarzania obrazów (np. regulacja kontrastu, normalizacja) w celu poprawy widoczności. Zapisuje zmodyfikowany obraz do nowego pliku z sufiksem `_enhanced`.
@@ -166,7 +214,7 @@ Wszystkie modele danych posiadają implementacje metod `toJson()` oraz fabryk `f
     - `analyzeImage(...)`: Wysyła obraz i aktualny stan PCB do serwisu AI w celu analizy. Obecnie zwraca zaślepkę (dummy response).
     - `_buildAnalysisPrompt()`: Buduje prompt dla AI, zawierający aktualny stan płytki i prośbę o identyfikację komponentów, połączeń i architektury.
 
-### 3.4. Interfejs Użytkownika (`lib/ui/`)
+### 4.4. Interfejs Użytkownika (`lib/ui/`)
 
 - `main_screen.dart`:
     - `PCBAnalyzerApp` (StatefulWidget): Główny widżet aplikacji. Zarządza globalnym stanem (`currentBoard`, `_currentIndex`) i koordynuje interakcje między panelami.
@@ -183,7 +231,7 @@ Wszystkie modele danych posiadają implementacje metod `toJson()` oraz fabryk `f
     - Zawiera kontrolki UI (przyciski, suwaki) do modyfikacji obrazu.
 - `widgets/properties_panel.dart`: Widżet `StatelessWidget` do wyświetlania i dodawania pomiarów.
 
-### 3.5. Zależności
+### 4.5. Zależności
 
 Projekt wykorzystuje następujące kluczowe zależności (zdefiniowane w `pubspec.yaml`):
 - `flutter`: Podstawowy framework UI.
@@ -192,7 +240,7 @@ Projekt wykorzystuje następujące kluczowe zależności (zdefiniowane w `pubspe
 - `desktop_drop`: Do obsługi przeciągania i upuszczania plików na platformach desktopowych.
 - `file_picker`: Do wyboru i zapisu plików przez użytkownika.
 
-## 4. Jak Uruchomić
+## 5. Jak Uruchomić
 
 Aby uruchomić aplikację, wykonaj następujące polecenia w katalogu głównym projektu (`pcb_rev`):
 
@@ -201,7 +249,7 @@ cd pcb_rev
 flutter run -d linux # lub inne dostępne urządzenie, np. chrome, windows, macos
 ```
 
-## 5. Dalszy Rozwój
+## 6. Dalszy Rozwój
 
 - **Rozbudowa analizy AI:** Implementacja rzeczywistej logiki analizy w `mcp_server` i integracja z modelem AI do inkrementalnej budowy schematu na podstawie analizy połączeń między komponentami.
 - **Wyrównywanie i nałożenie obrazów:** Rozwinięcie funkcji `alignImages` w `ImageProcessor` do precyzyjnego dopasowywania obrazów, w tym odwrócenia poziomego strony połączeń (dolnej) i nałożenia jej na stronę komponentów (górnej) w celu wizualizacji połączeń między warstwami płytki.
@@ -209,37 +257,3 @@ flutter run -d linux # lub inne dostępne urządzenie, np. chrome, windows, maco
 - **Generowanie netlisty:** Rozbudowa funkcji eksportu do standardowych formatów netlist (np. SPICE, KiCad).
 - **Walidacja schematu:** Implementacja narzędzi do automatycznej weryfikacji poprawności rekonstruowanego schematu.
 - **Wsparcie dla wielu warstw PCB:** Rozszerzenie modelu danych i UI o obsługę wielowarstwowych płytek.
-
-
-## 6. Dodatkowy opis
-
-1 . UI
-
-The left panel has components & connections list grouped with components types like resistors, capacitors etc. The center panel is a pictures view or pcb schematic view (depend from mode). The pictures have a flag "permanent" to view them toghether with other pictures. The right panel "Measurements" is provided for general operations.
-
-2 . Create pcb schematic procedure
-
-- uploading pictures of pcb
-- adding components to the list of pcb components
-- added component is dragged to the pcb schematic position (view mode is changed to the *pcb schematic*). Inputs and outputs of component have *connection points* that have to be always "glued" to the grid on the pcb schematic view.
-- adding connections "nets" to the list of connections "nets", net connections connect some connection points - componet connection points or net connection points, every connection net have also list of interconnections points with it's points coordinations on the pcb schematic (not functional, creating only net shape view.
-- you can select component from the left panel and add this component to the current image. (so every image have to have its own component list (as reference to the pcb schematic componets) together with component connection points coordinations specific for every image)
-- you can select connection net from the left panel and add this net to the current image. (so every image have to have its own nets connection points coordinations specific for this image as well as interconnections list for net connection with points interconnection coordinations specific for this image)
-
-3 . Net points (with interconnection points) coordinations
-
-Net N1 connection points N1.1, N1.2, N1.3, N1.4 marked as `*`
-Resistor R1 connection points R1.1, R1.2 marked as `*`
-Net N1 interconnection points marked as `/`
-PCB Schematic View: 
-*N1--/--/--*N1.2---/----*R1.1-(R1)-*R1.2-//--*N1.3 
-           |
-           |
-           *N1.4
-
-have in image reference to net N1 but with different points coordinations for every point, and differnet number of interconnections points with coordinations specific for this image: 
-Image Specific View: 
-*N1/-/-/---*N1.2---/-/-/-*R1.1-(R1)-*R1.2---/-*N1.3
-           |
-           |
-           *N1.4
