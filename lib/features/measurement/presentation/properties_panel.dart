@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/measurement_service.dart';
+import '../data/measurement_service.dart';
 
 class PropertiesPanel extends StatelessWidget {
   final MeasurementState measurementState;
@@ -161,4 +161,3 @@ class PropertiesPanel extends StatelessWidget {
     );
   }
 }
-

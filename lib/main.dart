@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'services/mcp_server.dart';
-import 'ui/main_screen.dart';
+import 'features/ai_integration/data/mcp_server.dart';
+import 'features/project/presentation/main_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

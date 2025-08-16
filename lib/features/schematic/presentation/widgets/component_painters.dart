@@ -1,9 +1,16 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import '../../models/logical_models.dart';
+import '../../data/logical_models.dart';
 
-void drawComponentSymbol(ui.Canvas canvas, LogicalComponent component, Offset pos, Paint paint, Paint fillPaint, {bool isSelected = false}) {
+void drawComponentSymbol(
+  ui.Canvas canvas,
+  LogicalComponent component,
+  Offset pos,
+  Paint paint,
+  Paint fillPaint, {
+  bool isSelected = false,
+}) {
   final componentPaint = paint..color = isSelected ? Colors.blue : Colors.white;
   final componentFillPaint = fillPaint..color = Colors.grey[900]!;
 
@@ -47,7 +54,13 @@ void drawCapacitor(ui.Canvas canvas, Offset pos, Paint paint, Paint fillPaint) {
   canvas.drawLine(pos + Offset(20, 0), pos + Offset(4, 0), paint);
 }
 
-void drawIC(ui.Canvas canvas, Offset pos, LogicalComponent component, Paint paint, Paint fillPaint) {
+void drawIC(
+  ui.Canvas canvas,
+  Offset pos,
+  LogicalComponent component,
+  Paint paint,
+  Paint fillPaint,
+) {
   final pinCount = component.pins.length;
   final width = 40.0;
   final height = math.max(20.0, (pinCount / 2).ceil() * 10.0);
@@ -84,7 +97,12 @@ void drawDiode(ui.Canvas canvas, Offset pos, Paint paint, Paint fillPaint) {
   canvas.drawLine(pos + Offset(10, -8), pos + Offset(10, 8), paint);
 }
 
-void drawTransistor(ui.Canvas canvas, Offset pos, Paint paint, Paint fillPaint) {
+void drawTransistor(
+  ui.Canvas canvas,
+  Offset pos,
+  Paint paint,
+  Paint fillPaint,
+) {
   canvas.drawCircle(pos, 15, fillPaint);
   canvas.drawCircle(pos, 15, paint);
 
@@ -97,7 +115,12 @@ void drawTransistor(ui.Canvas canvas, Offset pos, Paint paint, Paint fillPaint) 
   canvas.drawLine(pos + Offset(-5, 4), pos + Offset(5, 10), paint);
 }
 
-void drawGenericComponent(ui.Canvas canvas, Offset pos, Paint paint, Paint fillPaint) {
+void drawGenericComponent(
+  ui.Canvas canvas,
+  Offset pos,
+  Paint paint,
+  Paint fillPaint,
+) {
   final rect = Rect.fromCenter(center: pos, width: 30, height: 20);
   canvas.drawRect(rect, fillPaint);
   canvas.drawRect(rect, paint);

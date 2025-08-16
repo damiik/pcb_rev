@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:pcb_rev/models/logical_models.dart';
-import 'package:pcb_rev/models/project.dart';
+import '../../../project/data/project.dart';
+import '../../data/logical_models.dart';
 
 class WirePainter extends CustomPainter {
   final Project project;
@@ -63,6 +63,7 @@ class WirePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant WirePainter oldDelegate) {
-    return oldDelegate.project != project || oldDelegate.selectedNet != selectedNet;
+    return oldDelegate.project != project ||
+        oldDelegate.selectedNet != selectedNet;
   }
 }

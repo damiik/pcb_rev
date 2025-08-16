@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../models/project.dart';
+import '../../project/data/project.dart';
 
 // The server state can be managed in a simple state record or map.
 var _currentProject_ = projectFromJson({
@@ -9,15 +9,15 @@ var _currentProject_ = projectFromJson({
   'name': 'Initial Project',
   'logicalComponents': <String, dynamic>{},
   'logicalNets': <String, dynamic>{},
-  'schematic': {
-    'symbols': <String, dynamic>{},
-    'wires': <String, dynamic>{},
-  },
+  'schematic': {'symbols': <String, dynamic>{}, 'wires': <String, dynamic>{}},
   'pcbImages': <dynamic>[],
   'lastUpdated': DateTime.now().toIso8601String(),
 });
 
-Future<void> startMCPServer({String baseUrl = 'http://localhost:8080', int port = 8080}) async {
+Future<void> startMCPServer({
+  String baseUrl = 'http://localhost:8080',
+  int port = 8080,
+}) async {
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, port);
   print('MCP Server listening on port $port');
 
@@ -61,12 +61,14 @@ void _handleRequest(HttpRequest request, String baseUrl) {
 }
 
 Future<void> _handleAnalysis(HttpRequest request, HttpResponse response) async {
-  response.write(jsonEncode({
-    "new_components": [],
-    "new_connections": [],
-    "suggested_nets": [],
-    "architecture_notes": "Dummy analysis"
-  }));
+  response.write(
+    jsonEncode({
+      "new_components": [],
+      "new_connections": [],
+      "suggested_nets": [],
+      "architecture_notes": "Dummy analysis",
+    }),
+  );
 }
 
 Future<Map<String, dynamic>> analyzeImageWithAI(
@@ -89,9 +91,7 @@ Future<Map<String, dynamic>> analyzeImageWithAI(
     return jsonDecode(aiResponse.body);
   } catch (e) {
     print('Error sending analysis request: $e');
-    return {
-      'error': 'Failed to connect to the analysis server.',
-    };
+    return {'error': 'Failed to connect to the analysis server.'};
   }
 }
 
@@ -108,4 +108,3 @@ String _buildAnalysisPrompt(Project project) {
   Please provide updates in JSON format with new components and connections found.
   ''';
 }
-

@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:pcb_rev/models/project.dart';
-import '../../models/logical_models.dart';
+import '../../../project/data/project.dart';
+import '../../data/logical_models.dart';
 import 'component_painters.dart';
 
 class GridPainter extends CustomPainter {

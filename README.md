@@ -33,75 +33,54 @@ Aplikacja jest rozwijana w technologii Flutter, co umożliwia jej działanie na 
 
 ### 2.1. Przegląd
 
-Architektura PCBRev opiera się na warstwowym podejściu, co zapewnia modularność, łatwość testowania i rozszerzalność. Główne warstwy to:
-- **Warstwa UI (User Interface):** Odpowiedzialna za prezentację danych i interakcję z użytkownikiem.
-- **Warstwa Serwisów (Services):** Zawiera logikę biznesową i komunikację z zewnętrznymi systemami.
-- **Warstwa Danych (Data/Models):** Definiuje struktury danych używane w aplikacji.
+Architektura PCBRev opiera się na podejściu modułowym, zorientowanym na funkcje, co zapewnia wysoką spójność i niskie sprzężenie między komponentami. Główne elementy architektury to:
 
-### 2.2. Modele Danych
+- **Core (`lib/core/`)**: Zawiera współdzielony kod, narzędzia i podstawowe klasy używane w całej aplikacji.
+- **Features (`lib/features/`)**: Główny katalog zawierający moduły funkcjonalne. Każdy moduł jest samodzielną jednostką z własną architekturą wewnętrzną (dane, domena, prezentacja).
 
-Modele danych są kluczowe dla reprezentacji stanu PCB i są zdefiniowane w katalogu `lib/models/`:
-- `pcb_models.dart`: Zawiera podstawowe definicje, takie jak `Component`, `Pin`, `Net`, `ConnectionPoint`, `Position`.
-- `pcb_board.dart`: Definiuje główny model `PCBBoard`, który agreguje wszystkie dane dotyczące aktualnie analizowanej płytki, w tym listę obrazów (`PCBImage`) i ich modyfikacje (`ImageModification`).
-- `image_modification.dart`: Nowo dodany model przechowujący parametry modyfikacji obrazu (obrót, odwrócenie, kontrast, jasność, inwersja kolorów).
+### 2.2. Struktura Modułów Funkcjonalnych
 
-### 2.3. Serwisy
+Każdy moduł w katalogu `lib/features/` jest zorganizowany według następującego schematu:
 
-Serwisy implementują logikę aplikacji i interakcje z systemem:
-- `image_processor.dart`: Odpowiedzialny za przetwarzanie obrazów, w tym ich wzmacnianie i potencjalne wyrównywanie.
-- `measurement_service.dart`: Zarządza rejestrowaniem i generowaniem raportów z pomiarów elektrycznych.
-- `mcp_server.dart`: Działa jako most komunikacyjny z zewnętrznym serwerem AI, wysyłając dane PCB i obrazy do analizy oraz odbierając wyniki.
+- **Data**: Warstwa danych, odpowiedzialna za źródła danych (np. usługi, bazy danych) i modele.
+- **Domain**: Warstwa domeny, zawierająca logikę biznesową i przypadki użycia.
+- **Presentation**: Warstwa prezentacji, odpowiedzialna za interfejs użytkownika (widgety, strony) i zarządzanie stanem.
 
-### 2.4. Interfejs Użytkownika (UI)
-
-Interfejs użytkownika jest zbudowany z komponentów Flutter i podzielony na mniejsze, reużywalne widżety:
-- `main_screen.dart`: Główny ekran aplikacji, agregujący pozostałe panele.
-- `widgets/component_list_panel.dart`: Wyświetla listę komponentów na PCB.
-- `widgets/pcb_viewer_panel.dart`: Centralny panel do wyświetlania obrazów PCB, obsługujący przeciąganie i upuszczanie plików, nawigację między obrazami oraz kontrolki do ich modyfikacji.
-- `widgets/properties_panel.dart`: Panel boczny do wyświetlania właściwości i zarządzania pomiarami.
-
-### 2.5. Diagram Architektury
+### 2.3. Diagram Architektury
 
 ```mermaid
 graph TD
-    A[PCBRev App] --> B(Warstwa UI);
-    B --> C{Główny Ekran};
-    C --> D[Panel Listy Komponentów];
-    C --> E[Panel Przeglądarki PCB];
-    C --> F[Panel Właściwości];
+    A[PCBRev App] --> B(Core);
+    A --> C(Features);
 
-    A --> G(Warstwa Serwisów);
-    G --> H{ImageProcessor};
-    G --> I{MeasurementService};
-    G --> J{MCPServer};
+    B --> D{Services};
+    B --> E{Models};
+    B --> F{Theme};
 
-    A --> K(Warstwa Danych);
-    K --> L{PCBBoard Model};
-    K --> M{Component Model};
-    K --> N{Net Model};
-    K --> O{ImageModification Model};
-    K --> P{PCBImage Model};
-    K --> Q{Pin Model};
-    K --> R{Position Model};
-    K --> S{Annotation Model};
-    K --> T{Size Model};
-    K --> U{ConnectionPoint Model};
+    C --> G{Project};
+    C --> H{PCB Viewer};
+    C --> I{Schematic};
+    C --> J{Measurement};
+    C --> K{AI Integration};
 
-    E --> H;
-    F --> I;
-    J --> V((Serwis AI));
+    G --> G_Data[Data];
+    G --> G_Domain[Domain];
+    G --> G_Pres[Presentation];
 
-    L --> M;
-    L --> N;
-    L --> P;
-    L --> O;
-    P --> S;
-    S --> R;
-    S --> T;
-    M --> Q;
-    M --> R;
-    N --> U;
-    U --> R;
+    H --> H_Data[Data];
+    H --> H_Domain[Domain];
+    H --> H_Pres[Presentation];
+
+    I --> I_Data[Data];
+    I --> I_Domain[Domain];
+    I --> I_Pres[Presentation];
+
+    J --> J_Data[Data];
+    J --> J_Domain[Domain];
+    J --> J_Pres[Presentation];
+
+    K --> K_Data[Data];
+    K --> K_Domain[Domain];
 ```
 
 ## 3. Koncepcja Pracy i Model Danych (Workflow)
@@ -161,75 +140,35 @@ Projekt jest w fazie aktywnego rozwoju, a poniżej przedstawiono kluczowe aspekt
 ```
 pcb_rev/
 ├── lib/
-│   ├── main.dart
-│   ├── models/
-│   │   ├── image_modification.dart
-│   │   ├── pcb_board.dart
-│   │   └── pcb_models.dart
-│   ├── services/
-│   │   ├── image_processor.dart
-│   │   ├── mcp_server.dart
-│   │   └── measurement_service.dart
-│   └── ui/
-│       ├── main_screen.dart
-│       └── widgets/
-│           ├── component_list_panel.dart
-│           ├── pcb_viewer_panel.dart
-│           ├── properties_panel.dart
-│           └── schematic_painter.dart
+│   ├── core/
+│   │   ├── models/
+│   │   ├── services/
+│   │   └── theme/
+│   ├── features/
+│   │   ├── ai_integration/
+│   │   │   ├── data/
+│   │   │   └── domain/
+│   │   ├── measurement/
+│   │   │   ├── data/
+│   │   │   ├── domain/
+│   │   │   └── presentation/
+│   │   ├── pcb_viewer/
+│   │   │   ├── data/
+│   │   │   ├── domain/
+│   │   │   └── presentation/
+│   │   ├── project/
+│   │   │   ├── data/
+│   │   │   ├── domain/
+│   │   │   └── presentation/
+│   │   └── schematic/
+│   │       ├── data/
+│   │       ├── domain/
+│   │       └── presentation/
+│   └── main.dart
 ├── pubspec.yaml
 ├── README.md
 ... (pozostałe pliki projektu Flutter)
 ```
-
-### 4.2. Modele Danych (`lib/models/`)
-
-Wszystkie modele danych posiadają implementacje metod `toJson()` oraz fabryk `fromJson()`, co umożliwia łatwą serializację i deserializację obiektów do formatu JSON, niezbędnego do zapisu/odczytu projektu oraz komunikacji z AI.
-
-- `pcb_models.dart`:
-    - `Component`: Reprezentuje komponent elektroniczny z ID, typem, wartością, numerem części, pinami, pozycją i warstwą.
-    - `Pin`: Definiuje pin komponentu z ID, funkcją, nazwą sieci i pozycją.
-    - `Net`: Reprezentuje sieć połączeń między pinami, z nazwą i listą punktów połączeń. Może zawierać dane pomiarowe (rezystancja, napięcie).
-    - `ConnectionPoint`: Określa punkt połączenia na PCB, odwołując się do ID komponentu i pinu.
-    - `Position`: Prosta klasa do przechowywania współrzędnych X i Y.
-- `pcb_board.dart`:
-    - `PCBBoard`: Główny kontener danych dla pojedynczej płytki PCB. Zawiera mapy komponentów i sieci, listę obrazów (`PCBImage`) oraz nowo dodaną mapę `imageModifications`, która przechowuje modyfikacje dla każdego obrazu na podstawie jego ID.
-    - `PCBImage`: Reprezentuje obraz PCB z ID, ścieżką do pliku, warstwą (góra/dół), typem obrazu i listą adnotacji.
-    - `ImageType` (enum): Określa typ obrazu (komponenty, ścieżki, oba).
-    - `Annotation`: Definiuje adnotację na obrazie, wskazując komponent, pozycję i rozmiar.
-    - `Size`: Przechowuje szerokość i wysokość.
-- `image_modification.dart`:
-    - `ImageModification`: Przechowuje wszystkie parametry modyfikacji wizualnych dla danego obrazu: `rotation` (stopnie), `flipHorizontal`, `flipVertical`, `contrast` (-1 do 1), `brightness` (-1 do 1), `invertColors`.
-
-### 4.3. Serwisy (`lib/services/`)
-
-- `image_processor.dart`:
-    - `enhanceImage(String imagePath)`: Funkcja do wstępnego przetwarzania obrazów (np. regulacja kontrastu, normalizacja) w celu poprawy widoczności. Zapisuje zmodyfikowany obraz do nowego pliku z sufiksem `_enhanced`.
-    - `alignImages(...)`: (Placeholder) Docelowo będzie służyć do wyrównywania obrazów górnej i dolnej strony PCB.
-- `measurement_service.dart`:
-    - `recordResistance(...)`, `recordVoltage(...)`, `recordContinuity(...)`: Metody do rejestrowania różnych typów pomiarów.
-    - `generateReport()`: Generuje podsumowanie zarejestrowanych pomiarów.
-- `mcp_server.dart`:
-    - `startServer()`: Uruchamia lokalny serwer HTTP, który służy jako punkt końcowy dla komunikacji z AI.
-    - `analyzeImage(...)`: Wysyła obraz i aktualny stan PCB do serwisu AI w celu analizy. Obecnie zwraca zaślepkę (dummy response).
-    - `_buildAnalysisPrompt()`: Buduje prompt dla AI, zawierający aktualny stan płytki i prośbę o identyfikację komponentów, połączeń i architektury.
-
-### 4.4. Interfejs Użytkownika (`lib/ui/`)
-
-- `main_screen.dart`:
-    - `PCBAnalyzerApp` (StatefulWidget): Główny widżet aplikacji. Zarządza globalnym stanem (`currentBoard`, `_currentIndex`) i koordynuje interakcje między panelami.
-    - `_handleImageDrop()`: Obsługuje przeciąganie i upuszczanie plików graficznych na panel przeglądarki PCB. Obrazy są przetwarzane, wysyłane do AI (zaślepka), a następnie dodawane do `currentBoard.images` w aktualnej pozycji.
-    - `_updateImageModification()`: Aktualizuje parametry modyfikacji obrazu dla aktualnie wyświetlanego obrazu.
-    - `_saveProject()`: Umożliwia zapisanie całego stanu `currentBoard` (wraz z obrazami i ich modyfikacjami) do pliku JSON (`.pcbrev`) za pomocą `file_picker`.
-    - `_openProject()`: Umożliwia wczytanie projektu z pliku `.pcbrev`, deserializując dane do `currentBoard`.
-- `widgets/component_list_panel.dart`: Prosty widżet `StatelessWidget` wyświetlający listę komponentów.
-- `widgets/pcb_viewer_panel.dart`:
-    - `StatelessWidget` odpowiedzialny za wyświetlanie aktualnego obrazu PCB.
-    - Wykorzystuje `desktop_drop` do obsługi przeciągania i upuszczania plików.
-    - Implementuje nawigację `onNext`/`onPrevious` dla obrazów.
-    - Stosuje transformacje (`Transform.rotate`, `Transform`) i filtry kolorów (`ColorFiltered`) na wyświetlanym obrazie zgodnie z parametrami z `ImageModification`.
-    - Zawiera kontrolki UI (przyciski, suwaki) do modyfikacji obrazu.
-- `widgets/properties_panel.dart`: Widżet `StatelessWidget` do wyświetlania i dodawania pomiarów.
 
 ### 4.5. Zależności
 

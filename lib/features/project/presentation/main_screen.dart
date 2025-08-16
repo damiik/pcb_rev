@@ -5,16 +5,20 @@ import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:pcb_rev/models/project.dart';
-import '../models/image_modification.dart';
-import '../models/logical_models.dart';
-import '../models/visual_models.dart';
-import '../services/image_processor.dart' as image_processor;
-import '../services/mcp_server.dart' as mcp_server;
-import '../services/measurement_service.dart' as measurement_service;
-import 'widgets/component_list_panel.dart';
-import 'widgets/pcb_viewer_panel.dart';
-import 'widgets/properties_panel.dart';
+import '../../../features/measurement/data/measurement_service.dart'
+    as measurement_service;
+import '../../../features/pcb_viewer/data/image_modification.dart';
+import '../../../features/pcb_viewer/presentation/pcb_viewer_panel.dart';
+import '../../../features/schematic/data/logical_models.dart';
+import '../../../features/schematic/data/visual_models.dart';
+import '../../../features/global_list/presentation/widgets/global_list_panel.dart';
+import '../../measurement/presentation/properties_panel.dart';
+import '../data/project.dart';
+import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:pcb_rev/features/pcb_viewer/data/image_processor.dart'
+    as image_processor;
 
 class PCBAnalyzerApp extends StatefulWidget {
   @override
@@ -26,8 +30,8 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   int _currentImageIndex = 0;
   LogicalComponent? _draggingComponent;
   bool _isProcessingImage = false;
-  measurement_service.MeasurementState measurementState =
-      measurement_service.createInitialMeasurementState();
+  measurement_service.MeasurementState measurementState = measurement_service
+      .createInitialMeasurementState();
   bool _dragging = false;
 
   @override
@@ -76,7 +80,10 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
           appBar: AppBar(
             title: Text(currentProject?.name ?? 'PCB Analyzer'),
             actions: [
-              IconButton(icon: Icon(Icons.folder_open), onPressed: _openProject),
+              IconButton(
+                icon: Icon(Icons.folder_open),
+                onPressed: _openProject,
+              ),
               IconButton(icon: Icon(Icons.save), onPressed: _saveProject),
               IconButton(icon: Icon(Icons.share), onPressed: _exportNetlist),
             ],
@@ -87,11 +94,13 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                 children: [
                   Expanded(
                     flex: 2,
-                    child: ComponentListPanel(
+                    child: GlobalListPanel(
                       components:
                           currentProject?.logicalComponents.values.toList() ??
-                              [],
+                          [],
+                      nets: currentProject?.logicalNets.values.toList() ?? [],
                       onComponentSelected: _selectComponent,
+                      onNetSelected: _selectNet,
                     ),
                   ),
                   Expanded(
@@ -149,6 +158,12 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     });
   }
 
+  void _selectNet(LogicalNet net) {
+    setState(() {
+      // Logic to handle net selection in the UI
+    });
+  }
+
   Future<void> _handleImageDrop(List<String> imagePaths) async {
     print('[MainScreen] Handling image drop with paths: $imagePaths');
     if (currentProject == null) {
@@ -172,7 +187,9 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
           'path': enhancedPath,
           'layer': 'top',
           'componentPlacements': <String, dynamic>{},
-          'modification': imageModificationToJson(createDefaultImageModification()),
+          'modification': imageModificationToJson(
+            createDefaultImageModification(),
+          ),
         });
         final updatedImages = List<PCBImageView>.from(project.pcbImages)
           ..add(newImage);
@@ -219,13 +236,20 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         'rotation': 0.0,
       });
 
-      final newSymbols = Map<String, Symbol>.from(currentProject!.schematic.symbols);
+      final newSymbols = Map<String, Symbol>.from(
+        currentProject!.schematic.symbols,
+      );
       newSymbols[newSymbol.id] = newSymbol;
 
-      final newLogicalComponents = Map<String, LogicalComponent>.from(currentProject!.logicalComponents);
+      final newLogicalComponents = Map<String, LogicalComponent>.from(
+        currentProject!.logicalComponents,
+      );
       newLogicalComponents[logicalComponent.id] = logicalComponent;
 
-      final newSchematic = (symbols: newSymbols, wires: currentProject!.schematic.wires);
+      final newSchematic = (
+        symbols: newSymbols,
+        wires: currentProject!.schematic.wires,
+      );
 
       setState(() {
         currentProject = currentProject!.copyWith(
@@ -287,4 +311,3 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     print(netlist);
   }
 }
-

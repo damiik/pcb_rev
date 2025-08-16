@@ -1,14 +1,15 @@
-import './visual_models.dart';
-import './logical_models.dart';
-import './image_modification.dart';
+import '../../pcb_viewer/data/image_modification.dart';
+import '../../schematic/data/logical_models.dart';
+import '../../schematic/data/visual_models.dart';
 
 // --- PCB Image View ---
 // An image is a view with its own set of visual annotations.
-typedef PCBImageView = ({ 
+typedef PCBImageView = ({
   String id,
   String path,
   String layer, // top/bottom
-  Map<String, Symbol> componentPlacements, // Annotations are just symbols on an image
+  Map<String, Symbol>
+  componentPlacements, // Annotations are just symbols on an image
   ImageModification modification,
 });
 
@@ -16,7 +17,9 @@ Map<String, dynamic> pcbImageViewToJson(PCBImageView v) => {
   'id': v.id,
   'path': v.path,
   'layer': v.layer,
-  'componentPlacements': v.componentPlacements.map((k, v) => MapEntry(k, symbolToJson(v))),
+  'componentPlacements': v.componentPlacements.map(
+    (k, v) => MapEntry(k, symbolToJson(v)),
+  ),
   'modification': imageModificationToJson(v.modification),
 };
 
@@ -24,14 +27,16 @@ PCBImageView pcbImageViewFromJson(Map<String, dynamic> json) => (
   id: json['id'] as String,
   path: json['path'] as String,
   layer: json['layer'] as String,
-  componentPlacements: (json['componentPlacements'] as Map<String, dynamic>).map((k, v) => MapEntry(k, symbolFromJson(v as Map<String, dynamic>))),
-  modification: imageModificationFromJson(json['modification'] as Map<String, dynamic>),
+  componentPlacements: (json['componentPlacements'] as Map<String, dynamic>)
+      .map((k, v) => MapEntry(k, symbolFromJson(v as Map<String, dynamic>))),
+  modification: imageModificationFromJson(
+    json['modification'] as Map<String, dynamic>,
+  ),
 );
-
 
 // --- Project ---
 // The main container for the entire project state.
-typedef Project = ({ 
+typedef Project = ({
   String id,
   String name,
   DateTime lastUpdated,
@@ -47,7 +52,9 @@ Map<String, dynamic> projectToJson(Project p) => {
   'id': p.id,
   'name': p.name,
   'lastUpdated': p.lastUpdated.toIso8601String(),
-  'logicalComponents': p.logicalComponents.map((k, v) => MapEntry(k, logicalComponentToJson(v))),
+  'logicalComponents': p.logicalComponents.map(
+    (k, v) => MapEntry(k, logicalComponentToJson(v)),
+  ),
   'logicalNets': p.logicalNets.map((k, v) => MapEntry(k, logicalNetToJson(v))),
   'schematic': schematicViewToJson(p.schematic),
   'pcbImages': p.pcbImages.map((v) => pcbImageViewToJson(v)).toList(),
@@ -57,10 +64,16 @@ Project projectFromJson(Map<String, dynamic> json) => (
   id: json['id'] as String,
   name: json['name'] as String,
   lastUpdated: DateTime.parse(json['lastUpdated'] as String),
-  logicalComponents: (json['logicalComponents'] as Map<String, dynamic>).map((k, v) => MapEntry(k, logicalComponentFromJson(v as Map<String, dynamic>))),
-  logicalNets: (json['logicalNets'] as Map<String, dynamic>).map((k, v) => MapEntry(k, logicalNetFromJson(v as Map<String, dynamic>))),
+  logicalComponents: (json['logicalComponents'] as Map<String, dynamic>).map(
+    (k, v) => MapEntry(k, logicalComponentFromJson(v as Map<String, dynamic>)),
+  ),
+  logicalNets: (json['logicalNets'] as Map<String, dynamic>).map(
+    (k, v) => MapEntry(k, logicalNetFromJson(v as Map<String, dynamic>)),
+  ),
   schematic: schematicViewFromJson(json['schematic'] as Map<String, dynamic>),
-  pcbImages: (json['pcbImages'] as List<dynamic>).map((v) => pcbImageViewFromJson(v as Map<String, dynamic>)).toList(),
+  pcbImages: (json['pcbImages'] as List<dynamic>)
+      .map((v) => pcbImageViewFromJson(v as Map<String, dynamic>))
+      .toList(),
 );
 
 // --- Netlist Generation ---
@@ -72,7 +85,9 @@ String generateNetlistFromProject(Project project) {
   }
   buffer.writeln('\n* Nets');
   for (final net in project.logicalNets.values) {
-    final connections = net.connections.map((c) => connectionPointToString(c)).join(' ');
+    final connections = net.connections
+        .map((c) => connectionPointToString(c))
+        .join(' ');
     buffer.writeln('NET ${net.name}: $connections');
   }
   return buffer.toString();
@@ -99,4 +114,3 @@ extension ProjectCopyWith on Project {
     );
   }
 }
-

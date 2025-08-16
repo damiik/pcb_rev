@@ -2,12 +2,12 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:pcb_rev/models/project.dart';
-import '../../models/image_modification.dart';
-import '../../models/logical_models.dart';
-import '../../models/visual_models.dart';
-import 'schematic_painter.dart';
-import 'wire_painter.dart';
+import '../../../features/project/data/project.dart';
+import '../../../features/schematic/data/logical_models.dart';
+import '../../../features/schematic/data/visual_models.dart';
+import '../../../features/schematic/presentation/widgets/schematic_painter.dart';
+import '../../../features/schematic/presentation/widgets/wire_painter.dart';
+import '../data/image_modification.dart';
 
 class PCBViewerPanel extends StatefulWidget {
   final Project? project;
@@ -162,7 +162,9 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
       onPointerMove: (event) {
         if (widget.draggingComponent != null) {
           setState(() {
-            var localPosition = _transformController.toScene(event.localPosition);
+            var localPosition = _transformController.toScene(
+              event.localPosition,
+            );
             if (_snapToGrid) {
               const gridSize = 20.0;
               localPosition = Offset(
@@ -428,12 +430,7 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
   ) {
     return ListTile(
       title: Text('$label: ${value.toStringAsFixed(2)}'),
-      subtitle: Slider(
-        value: value,
-        min: min,
-        max: max,
-        onChanged: onChanged,
-      ),
+      subtitle: Slider(value: value, min: min, max: max, onChanged: onChanged),
     );
   }
 
