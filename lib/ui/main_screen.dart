@@ -6,9 +6,9 @@ import 'package:flutter/material.dart';
 import '../models/image_modification.dart';
 import '../models/pcb_board.dart';
 import '../models/pcb_models.dart';
-import '../services/image_processor.dart';
-import '../services/mcp_server.dart';
-import '../services/measurement_service.dart';
+import '../services/image_processor.dart' as image_processor;
+import '../services/mcp_server.dart' as mcp_server;
+import '../services/measurement_service.dart' as measurement_service;
 import 'widgets/component_list_panel.dart';
 import 'widgets/pcb_viewer_panel.dart';
 import 'widgets/properties_panel.dart';
@@ -22,14 +22,20 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   PCBBoard? currentBoard;
   int _currentIndex = 0;
   Component? _draggingComponent;
-  final MeasurementService measurementService = MeasurementService();
-  final ImageProcessor imageProcessor = ImageProcessor();
-  final MCPServer mcpServer = MCPServer(baseUrl: 'http://localhost:8080');
+  measurement_service.MeasurementState measurementState = measurement_service.createInitialMeasurementState();
 
   @override
   void initState() {
     super.initState();
-    currentBoard = PCBBoard(id: '1', name: 'My Board');
+    currentBoard = pcbBoardFromJson({
+      'id': '1',
+      'name': 'My Board',
+      'components': <String, dynamic>{},
+      'nets': <String, dynamic>{},
+      'images': <dynamic>[],
+      'imageModifications': <String, dynamic>{},
+      'lastUpdated': DateTime.now().toIso8601String(),
+    });
   }
 
   @override
@@ -89,7 +95,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
             Expanded(
               flex: 3,
               child: PropertiesPanel(
-                measurementService: measurementService,
+                measurementState: measurementState,
                 onMeasurementAdded: _addMeasurement,
               ),
             ),
@@ -113,23 +119,24 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   Future<void> _handleImageDrop(List<String> imagePaths) async {
     // Process dropped images
     for (final path in imagePaths) {
-      final enhanced = await imageProcessor.enhanceImage(path);
+      final enhanced = await image_processor.enhanceImage(path);
 
       // Send to AI for analysis
       if (currentBoard != null) {
-        final analysis = await mcpServer.analyzeImage(enhanced, currentBoard!);
+        final analysis = await mcp_server.analyzeImageWithAI(enhanced, currentBoard!, 'http://localhost:8080');
 
         // Update board with AI findings
         setState(() {
           _updateBoardFromAnalysis(analysis);
-          final newImage = PCBImage(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            path: enhanced,
-            layer: 'top', // or get from user
-            type: ImageType.components, // or get from user
-          );
+          final newImage = pcbImageFromJson({
+            'id': DateTime.now().millisecondsSinceEpoch.toString(),
+            'path': enhanced,
+            'layer': 'top', // or get from user
+            'type': ImageType.components.toString(), // or get from user
+            'annotations': [],
+          });
           currentBoard!.images.insert(_currentIndex, newImage);
-          currentBoard!.imageModifications[newImage.id] = ImageModification();
+          currentBoard!.imageModifications[newImage.id] = createDefaultImageModification();
         });
       }
     }
@@ -143,14 +150,14 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void _addMeasurement(String type, dynamic value) {
     if (value is Map<String, dynamic>) {
       // It's a new component
-      final newComponent = Component(
-        id: value['name'],
-        type: value['type'],
-        value: value['value'],
-        position: Position(x: 100, y: 100), // Default position
-        pins: {},
-        layer: 'top',
-      );
+      final newComponent = componentFromJson({
+        'id': value['name'],
+        'type': value['type'],
+        'value': value['value'],
+        'position': positionToJson((x: 100, y: 100)), // Default position
+        'pins': <String, dynamic>{},
+        'layer': 'top',
+      });
       setState(() {
         _draggingComponent = newComponent;
       });
@@ -166,14 +173,10 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void _handleTap(Offset position) {
     if (_draggingComponent != null) {
       setState(() {
-        final newComponent = Component(
-          id: _draggingComponent!.id,
-          type: _draggingComponent!.type,
-          value: _draggingComponent!.value,
-          position: Position(x: position.dx, y: position.dy),
-          pins: _draggingComponent!.pins,
-          layer: _draggingComponent!.layer,
-        );
+        final newComponent = componentFromJson({
+          ...componentToJson(_draggingComponent!),
+          'position': positionToJson((x: position.dx, y: position.dy)),
+        });
         currentBoard?.components[newComponent.id] = newComponent;
         _draggingComponent = null;
       });
@@ -199,7 +202,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
     if (outputFile != null) {
       final file = File(outputFile);
-      await file.writeAsString(jsonEncode(currentBoard?.toJson()));
+      await file.writeAsString(jsonEncode(pcbBoardToJson(currentBoard!)));
     }
   }
 
@@ -210,7 +213,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       final file = File(result.files.single.path!);
       final content = await file.readAsString();
       setState(() {
-        currentBoard = PCBBoard.fromJson(jsonDecode(content));
+        currentBoard = pcbBoardFromJson(jsonDecode(content));
         _currentIndex = 0;
       });
     }
@@ -220,3 +223,4 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     // Export netlist in various formats
   }
 }
+

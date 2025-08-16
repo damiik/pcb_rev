@@ -52,25 +52,26 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    if (widget.board != null && widget.board!.images.isNotEmpty) {
-      _currentModification =
-          widget.board?.imageModifications[widget
-              .board
-              ?.images[widget.currentIndex]
-              .id] ??
-          ImageModification();
-    } else {
-      _currentModification = ImageModification();
-    }
+    _updateCurrentModification();
   }
 
   @override
   void didUpdateWidget(PCBViewerPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.board != oldWidget.board ||
+        widget.currentIndex != oldWidget.currentIndex) {
+      _updateCurrentModification();
+    }
+  }
+
+  void _updateCurrentModification() {
     if (widget.board != null && widget.board!.images.isNotEmpty) {
       final imageId = widget.board!.images[widget.currentIndex].id;
       _currentModification =
-          widget.board!.imageModifications[imageId] ?? ImageModification();
+          widget.board!.imageModifications[imageId] ??
+          createDefaultImageModification();
+    } else {
+      _currentModification = createDefaultImageModification();
     }
   }
 
@@ -432,108 +433,79 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Image Adjustments'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Rotation
-              ListTile(
-                title: Text(
-                  'Rotation: ${_currentModification.rotation.toStringAsFixed(0)}°',
-                ),
-                subtitle: Slider(
-                  value: _currentModification.rotation,
-                  min: -180,
-                  max: 180,
-                  onChanged: (value) {
-                    setState(() {
-                      _currentModification.rotation = value;
-                      widget.onImageModification(_currentModification);
-                    });
-                  },
-                ),
+        content: StatefulBuilder(
+          builder: (context, setState) {
+            return SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildSlider(
+                    context,
+                    'Rotation',
+                    _currentModification.rotation,
+                    -180,
+                    180,
+                    (v) => _currentModification = _currentModification.copyWith(
+                      rotation: v,
+                    ),
+                  ),
+                  _buildSlider(
+                    context,
+                    'Brightness',
+                    _currentModification.brightness,
+                    -1,
+                    1,
+                    (v) => _currentModification = _currentModification.copyWith(
+                      brightness: v,
+                    ),
+                  ),
+                  _buildSlider(
+                    context,
+                    'Contrast',
+                    _currentModification.contrast,
+                    -1,
+                    1,
+                    (v) => _currentModification = _currentModification.copyWith(
+                      contrast: v,
+                    ),
+                  ),
+                  _buildSwitch(
+                    context,
+                    'Flip Horizontal',
+                    _currentModification.flipHorizontal,
+                    (v) => _currentModification = _currentModification.copyWith(
+                      flipHorizontal: v,
+                    ),
+                  ),
+                  _buildSwitch(
+                    context,
+                    'Flip Vertical',
+                    _currentModification.flipVertical,
+                    (v) => _currentModification = _currentModification.copyWith(
+                      flipVertical: v,
+                    ),
+                  ),
+                  _buildSwitch(
+                    context,
+                    'Invert Colors',
+                    _currentModification.invertColors,
+                    (v) => _currentModification = _currentModification.copyWith(
+                      invertColors: v,
+                    ),
+                  ),
+                ],
               ),
-
-              // Brightness
-              ListTile(
-                title: Text(
-                  'Brightness: ${(_currentModification.brightness * 100).toStringAsFixed(0)}%',
-                ),
-                subtitle: Slider(
-                  value: _currentModification.brightness,
-                  min: -1,
-                  max: 1,
-                  onChanged: (value) {
-                    setState(() {
-                      _currentModification.brightness = value;
-                      widget.onImageModification(_currentModification);
-                    });
-                  },
-                ),
-              ),
-
-              // Contrast
-              ListTile(
-                title: Text(
-                  'Contrast: ${(_currentModification.contrast * 100).toStringAsFixed(0)}%',
-                ),
-                subtitle: Slider(
-                  value: _currentModification.contrast,
-                  min: -1,
-                  max: 1,
-                  onChanged: (value) {
-                    setState(() {
-                      _currentModification.contrast = value;
-                      widget.onImageModification(_currentModification);
-                    });
-                  },
-                ),
-              ),
-
-              // Flip controls
-              SwitchListTile(
-                title: Text('Flip Horizontal'),
-                value: _currentModification.flipHorizontal,
-                onChanged: (value) {
-                  setState(() {
-                    _currentModification.flipHorizontal = value;
-                    widget.onImageModification(_currentModification);
-                  });
-                },
-              ),
-
-              SwitchListTile(
-                title: Text('Flip Vertical'),
-                value: _currentModification.flipVertical,
-                onChanged: (value) {
-                  setState(() {
-                    _currentModification.flipVertical = value;
-                    widget.onImageModification(_currentModification);
-                  });
-                },
-              ),
-
-              SwitchListTile(
-                title: Text('Invert Colors'),
-                value: _currentModification.invertColors,
-                onChanged: (value) {
-                  setState(() {
-                    _currentModification.invertColors = value;
-                    widget.onImageModification(_currentModification);
-                  });
-                },
-              ),
-            ],
-          ),
+            );
+          },
         ),
         actions: [
           TextButton(
             child: Text('Reset'),
             onPressed: () {
-              setState(() {
-                _currentModification = ImageModification();
-                widget.onImageModification(_currentModification);
-              });
+              setState(
+                () => _currentModification = createDefaultImageModification(),
+              );
+              widget.onImageModification(_currentModification);
             },
           ),
           ElevatedButton(
@@ -542,6 +514,44 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSlider(
+    BuildContext context,
+    String label,
+    double value,
+    double min,
+    double max,
+    Function(double) onChanged,
+  ) {
+    return ListTile(
+      title: Text('$label: ${value.toStringAsFixed(2)}'),
+      subtitle: Slider(
+        value: value,
+        min: min,
+        max: max,
+        onChanged: (v) {
+          setState(() => onChanged(v));
+          widget.onImageModification(_currentModification);
+        },
+      ),
+    );
+  }
+
+  Widget _buildSwitch(
+    BuildContext context,
+    String label,
+    bool value,
+    Function(bool) onChanged,
+  ) {
+    return SwitchListTile(
+      title: Text(label),
+      value: value,
+      onChanged: (v) {
+        setState(() => onChanged(v));
+        widget.onImageModification(_currentModification);
+      },
     );
   }
 
@@ -554,3 +564,23 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
 }
 
 enum ViewMode { image, schematic, combined }
+
+extension ImageModificationCopyWith on ImageModification {
+  ImageModification copyWith({
+    double? rotation,
+    bool? flipHorizontal,
+    bool? flipVertical,
+    double? contrast,
+    double? brightness,
+    bool? invertColors,
+  }) {
+    return (
+      rotation: rotation ?? this.rotation,
+      flipHorizontal: flipHorizontal ?? this.flipHorizontal,
+      flipVertical: flipVertical ?? this.flipVertical,
+      contrast: contrast ?? this.contrast,
+      brightness: brightness ?? this.brightness,
+      invertColors: invertColors ?? this.invertColors,
+    );
+  }
+}

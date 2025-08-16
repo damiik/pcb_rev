@@ -1,4 +1,3 @@
-// lib/ui/widgets/schematic_painter.dart
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -64,14 +63,10 @@ class SchematicPainter extends CustomPainter {
 
     // Draw dragging component
     if (draggingComponent != null && mousePosition != null) {
-      final newPosition = Component(
-        id: draggingComponent!.id,
-        type: draggingComponent!.type,
-        value: draggingComponent!.value,
-        position: Position(x: mousePosition!.dx, y: mousePosition!.dy),
-        pins: draggingComponent!.pins,
-        layer: draggingComponent!.layer,
-      );
+      final newPosition = componentFromJson({
+        ...componentToJson(draggingComponent!),
+        'position': positionToJson((x: mousePosition!.dx, y: mousePosition!.dy)),
+      });
       _drawComponent(canvas, newPosition);
     }
   }

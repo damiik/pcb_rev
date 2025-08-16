@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import '../../services/measurement_service.dart';
 
 class PropertiesPanel extends StatelessWidget {
-  final MeasurementService measurementService;
+  final MeasurementState measurementState;
   final Function(String, dynamic) onMeasurementAdded;
 
   PropertiesPanel({
-    required this.measurementService,
+    required this.measurementState,
     required this.onMeasurementAdded,
   });
 
@@ -21,34 +21,32 @@ class PropertiesPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Measurements',
+            'Components & Measurements',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           SizedBox(height: 16),
 
-          // Measurement input forms
+          // Component creation buttons
           ElevatedButton.icon(
-            icon: Icon(Icons.electrical_services),
+            icon: Icon(Icons.memory),
             label: Text('Add Resistor'),
             onPressed: () => _showComponentDialog(context, 'Resistor'),
           ),
           SizedBox(height: 8),
           ElevatedButton.icon(
-            icon: Icon(Icons.electrical_services),
+            icon: Icon(Icons.camera_roll),
             label: Text('Add Capacitor'),
             onPressed: () => _showComponentDialog(context, 'Capacitor'),
           ),
+          SizedBox(height: 16),
 
-          SizedBox(height: 8),
-
+          // Measurement input forms
           ElevatedButton.icon(
             icon: Icon(Icons.flash_on),
             label: Text('Add Voltage'),
             onPressed: () => _showMeasurementDialog(context, 'voltage'),
           ),
-
           SizedBox(height: 8),
-
           ElevatedButton.icon(
             icon: Icon(Icons.link),
             label: Text('Test Continuity'),
@@ -61,14 +59,14 @@ class PropertiesPanel extends StatelessWidget {
           Expanded(
             child: ListView(
               children: [
-                ...measurementService.resistanceMap.entries.map((e) {
+                ...measurementState.resistanceMap.entries.map((e) {
                   return ListTile(
                     leading: Icon(Icons.electrical_services),
                     title: Text(e.key),
                     trailing: Text('${e.value} Ω'),
                   );
                 }),
-                ...measurementService.voltageMap.entries.map((e) {
+                ...measurementState.voltageMap.entries.map((e) {
                   return ListTile(
                     leading: Icon(Icons.flash_on),
                     title: Text(e.key),
@@ -84,7 +82,7 @@ class PropertiesPanel extends StatelessWidget {
   }
 
   void _showMeasurementDialog(BuildContext context, String type) {
-    // Show dialog to input measurement
+    // Dialog to input measurement
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -109,7 +107,7 @@ class PropertiesPanel extends StatelessWidget {
           ElevatedButton(
             child: Text('Add'),
             onPressed: () {
-              // Add measurement
+              // This would now be handled in the main screen's state
               onMeasurementAdded(type, 0); // Pass actual values
               Navigator.pop(context);
             },
@@ -163,3 +161,4 @@ class PropertiesPanel extends StatelessWidget {
     );
   }
 }
+

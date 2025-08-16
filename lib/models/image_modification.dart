@@ -1,30 +1,35 @@
-class ImageModification {
-  double rotation = 0; // in degrees
-  bool flipHorizontal = false;
-  bool flipVertical = false;
-  double contrast = 0; // -1 to 1
-  double brightness = 0; // -1 to 1
-  bool invertColors = false;
+typedef ImageModification = ({
+  double rotation,
+  bool flipHorizontal,
+  bool flipVertical,
+  double contrast,
+  double brightness,
+  bool invertColors
+});
 
-  ImageModification();
+ImageModification createDefaultImageModification() => (
+  rotation: 0.0,
+  flipHorizontal: false,
+  flipVertical: false,
+  contrast: 0.0,
+  brightness: 0.0,
+  invertColors: false,
+);
 
-  Map<String, dynamic> toJson() => {
-    'rotation': rotation,
-    'flipHorizontal': flipHorizontal,
-    'flipVertical': flipVertical,
-    'contrast': contrast,
-    'brightness': brightness,
-    'invertColors': invertColors,
-  };
+Map<String, dynamic> imageModificationToJson(ImageModification m) => {
+      'rotation': m.rotation,
+      'flipHorizontal': m.flipHorizontal,
+      'flipVertical': m.flipVertical,
+      'contrast': m.contrast,
+      'brightness': m.brightness,
+      'invertColors': m.invertColors,
+    };
 
-  factory ImageModification.fromJson(Map<String, dynamic> json) {
-    final mod = ImageModification();
-    mod.rotation = json['rotation'] ?? 0;
-    mod.flipHorizontal = json['flipHorizontal'] ?? false;
-    mod.flipVertical = json['flipVertical'] ?? false;
-    mod.contrast = json['contrast'] ?? 0;
-    mod.brightness = json['brightness'] ?? 0;
-    mod.invertColors = json['invertColors'] ?? false;
-    return mod;
-  }
-}
+ImageModification imageModificationFromJson(Map<String, dynamic> json) => (
+      rotation: json['rotation'] as double,
+      flipHorizontal: json['flipHorizontal'] as bool,
+      flipVertical: json['flipVertical'] as bool,
+      contrast: json['contrast'] as double,
+      brightness: json['brightness'] as double,
+      invertColors: json['invertColors'] as bool,
+    );
