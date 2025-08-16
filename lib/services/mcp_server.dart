@@ -1,16 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import '../models/pcb_board.dart';
+import '../models/project.dart';
 
 // The server state can be managed in a simple state record or map.
-var _currentBoard_ = pcbBoardFromJson({
+var _currentProject_ = projectFromJson({
   'id': '1',
-  'name': 'Initial Board',
-  'components': <String, dynamic>{},
-  'nets': <String, dynamic>{},
-  'images': <dynamic>[],
-  'imageModifications': <String, dynamic>{},
+  'name': 'Initial Project',
+  'logicalComponents': <String, dynamic>{},
+  'logicalNets': <String, dynamic>{},
+  'schematic': {
+    'symbols': <String, dynamic>{},
+    'wires': <String, dynamic>{},
+  },
+  'pcbImages': <dynamic>[],
   'lastUpdated': DateTime.now().toIso8601String(),
 });
 
@@ -28,13 +31,13 @@ void _handleRequest(HttpRequest request, String baseUrl) {
   response.headers.contentType = ContentType.json;
 
   switch (request.uri.path) {
-    case '/board':
+    case '/project':
       if (request.method == 'GET') {
-        response.write(jsonEncode(pcbBoardToJson(_currentBoard_)));
+        response.write(jsonEncode(projectToJson(_currentProject_)));
       } else if (request.method == 'POST') {
         utf8.decodeStream(request).then((body) {
           final data = jsonDecode(body);
-          _currentBoard_ = pcbBoardFromJson(data);
+          _currentProject_ = projectFromJson(data);
           response.statusCode = 200;
           response.close();
         });
@@ -47,7 +50,7 @@ void _handleRequest(HttpRequest request, String baseUrl) {
       break;
 
     case '/netlist':
-      response.write(generateNetlist(_currentBoard_));
+      response.write(generateNetlistFromProject(_currentProject_));
       break;
 
     default:
@@ -68,13 +71,13 @@ Future<void> _handleAnalysis(HttpRequest request, HttpResponse response) async {
 
 Future<Map<String, dynamic>> analyzeImageWithAI(
   String imagePath,
-  PCBBoard currentBoard,
+  Project currentProject,
   String baseUrl,
 ) async {
   final requestBody = {
     'image': await File(imagePath).readAsBytes(),
-    'currentState': jsonEncode(pcbBoardToJson(currentBoard)),
-    'prompt': _buildAnalysisPrompt(currentBoard),
+    'currentState': jsonEncode(projectToJson(currentProject)),
+    'prompt': _buildAnalysisPrompt(currentProject),
   };
 
   try {
@@ -92,7 +95,7 @@ Future<Map<String, dynamic>> analyzeImageWithAI(
   }
 }
 
-String _buildAnalysisPrompt(PCBBoard board) {
+String _buildAnalysisPrompt(Project project) {
   return '''
   Analyze this PCB image and identify:
   1. Components visible (type, value, designator)
@@ -100,7 +103,7 @@ String _buildAnalysisPrompt(PCBBoard board) {
   3. Any test points or connectors
 
   Current board state:
-  ${generateNetlist(board)}
+  ${generateNetlistFromProject(project)}
 
   Please provide updates in JSON format with new components and connections found.
   ''';

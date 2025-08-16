@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../models/pcb_models.dart';
+import '../../models/logical_models.dart';
 
 class ComponentListPanel extends StatelessWidget {
-  final List<Component> components;
-  final Function(Component) onComponentSelected;
+  final List<LogicalComponent> components;
+  final Function(LogicalComponent) onComponentSelected;
 
   ComponentListPanel({
     required this.components,

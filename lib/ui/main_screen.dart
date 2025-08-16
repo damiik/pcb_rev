@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
-
+import 'dart:convert';
+import 'dart:io';
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:pcb_rev/models/project.dart';
 import '../models/image_modification.dart';
-import '../models/pcb_board.dart';
-import '../models/pcb_models.dart';
+import '../models/logical_models.dart';
+import '../models/visual_models.dart';
 import '../services/image_processor.dart' as image_processor;
 import '../services/mcp_server.dart' as mcp_server;
 import '../services/measurement_service.dart' as measurement_service;
@@ -19,22 +22,34 @@ class PCBAnalyzerApp extends StatefulWidget {
 }
 
 class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
-  PCBBoard? currentBoard;
-  int _currentIndex = 0;
-  Component? _draggingComponent;
-  measurement_service.MeasurementState measurementState = measurement_service.createInitialMeasurementState();
+  Project? currentProject;
+  int _currentImageIndex = 0;
+  LogicalComponent? _draggingComponent;
+  bool _isProcessingImage = false;
+  measurement_service.MeasurementState measurementState =
+      measurement_service.createInitialMeasurementState();
+  bool _dragging = false;
 
   @override
   void initState() {
     super.initState();
-    currentBoard = pcbBoardFromJson({
-      'id': '1',
-      'name': 'My Board',
-      'components': <String, dynamic>{},
-      'nets': <String, dynamic>{},
-      'images': <dynamic>[],
-      'imageModifications': <String, dynamic>{},
-      'lastUpdated': DateTime.now().toIso8601String(),
+    _initializeProject();
+  }
+
+  void _initializeProject() {
+    setState(() {
+      currentProject = projectFromJson({
+        'id': '1',
+        'name': 'My Project',
+        'lastUpdated': DateTime.now().toIso8601String(),
+        'logicalComponents': <String, dynamic>{},
+        'logicalNets': <String, dynamic>{},
+        'schematic': {
+          'symbols': <String, dynamic>{},
+          'wires': <String, dynamic>{},
+        },
+        'pcbImages': <dynamic>[],
+      });
     });
   }
 
@@ -43,158 +58,204 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     return MaterialApp(
       title: 'PCB Reverse Engineering',
       theme: ThemeData.dark(),
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text('PCB Analyzer'),
-          actions: [
-            IconButton(icon: Icon(Icons.folder_open), onPressed: _openProject),
-            IconButton(icon: Icon(Icons.save), onPressed: _saveProject),
-            IconButton(icon: Icon(Icons.share), onPressed: _exportNetlist),
-          ],
-        ),
-        body: Row(
-          children: [
-            // Left panel - Component list
-            Expanded(
-              flex: 2,
-              child: ComponentListPanel(
-                components: currentBoard?.components.values.toList() ?? [],
-                onComponentSelected: _selectComponent,
+      home: DropTarget(
+        onDragDone: (detail) {
+          _handleImageDrop(detail.files.map((f) => f.path).toList());
+        },
+        onDragEntered: (detail) {
+          setState(() {
+            _dragging = true;
+          });
+        },
+        onDragExited: (detail) {
+          setState(() {
+            _dragging = false;
+          });
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Text(currentProject?.name ?? 'PCB Analyzer'),
+            actions: [
+              IconButton(icon: Icon(Icons.folder_open), onPressed: _openProject),
+              IconButton(icon: Icon(Icons.save), onPressed: _saveProject),
+              IconButton(icon: Icon(Icons.share), onPressed: _exportNetlist),
+            ],
+          ),
+          body: Stack(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: ComponentListPanel(
+                      components:
+                          currentProject?.logicalComponents.values.toList() ??
+                              [],
+                      onComponentSelected: _selectComponent,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 5,
+                    child: PCBViewerPanel(
+                      project: currentProject,
+                      isProcessingImage: _isProcessingImage,
+                      draggingComponent: _draggingComponent,
+                      currentIndex: _currentImageIndex,
+                      onImageDrop: _handleImageDrop,
+                      onNext: () => _navigateImages(1),
+                      onPrevious: () => _navigateImages(-1),
+                      onImageModification: _updateImageModification,
+                      onTap: _handleTap,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: PropertiesPanel(
+                      measurementState: measurementState,
+                      onMeasurementAdded: _addMeasurement,
+                    ),
+                  ),
+                ],
               ),
-            ),
-
-            // Center - PCB Viewer
-            Expanded(
-              flex: 5,
-              child: PCBViewerPanel(
-                board: currentBoard,
-                draggingComponent: _draggingComponent,
-                currentIndex: _currentIndex,
-                onImageDrop: _handleImageDrop,
-                onNext: () {
-                  setState(() {
-                    if (currentBoard != null &&
-                        _currentIndex < currentBoard!.images.length - 1) {
-                      _currentIndex++;
-                    }
-                  });
-                },
-                onPrevious: () {
-                  setState(() {
-                    if (_currentIndex > 0) {
-                      _currentIndex--;
-                    }
-                  });
-                },
-                onImageModification: _updateImageModification,
-                onTap: _handleTap,
-              ),
-            ),
-
-            // Right panel - Properties & Measurements
-            Expanded(
-              flex: 3,
-              child: PropertiesPanel(
-                measurementState: measurementState,
-                onMeasurementAdded: _addMeasurement,
-              ),
-            ),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          child: Icon(Icons.camera_alt),
-          onPressed: _captureImage,
+              if (_dragging)
+                Container(
+                  color: Colors.blue.withOpacity(0.2),
+                  child: Center(
+                    child: Icon(
+                      Icons.add_photo_alternate,
+                      color: Colors.white,
+                      size: 100,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _selectComponent(Component component) {
-    // Handle component selection
+  void _navigateImages(int delta) {
+    if (currentProject == null) return;
+    final newIndex = _currentImageIndex + delta;
+    if (newIndex >= 0 && newIndex < currentProject!.pcbImages.length) {
+      setState(() => _currentImageIndex = newIndex);
+    }
+  }
+
+  void _selectComponent(LogicalComponent component) {
     setState(() {
-      // Update UI to highlight selected component
+      // Logic to handle component selection in the UI
     });
   }
 
   Future<void> _handleImageDrop(List<String> imagePaths) async {
-    // Process dropped images
-    for (final path in imagePaths) {
-      final enhanced = await image_processor.enhanceImage(path);
-
-      // Send to AI for analysis
-      if (currentBoard != null) {
-        final analysis = await mcp_server.analyzeImageWithAI(enhanced, currentBoard!, 'http://localhost:8080');
-
-        // Update board with AI findings
-        setState(() {
-          _updateBoardFromAnalysis(analysis);
-          final newImage = pcbImageFromJson({
-            'id': DateTime.now().millisecondsSinceEpoch.toString(),
-            'path': enhanced,
-            'layer': 'top', // or get from user
-            'type': ImageType.components.toString(), // or get from user
-            'annotations': [],
-          });
-          currentBoard!.images.insert(_currentIndex, newImage);
-          currentBoard!.imageModifications[newImage.id] = createDefaultImageModification();
-        });
-      }
+    print('[MainScreen] Handling image drop with paths: $imagePaths');
+    if (currentProject == null) {
+      print('[MainScreen] Project is null. Aborting drop.');
+      return;
     }
-  }
 
-  void _updateBoardFromAnalysis(Map<String, dynamic> analysis) {
-    // Parse AI response and update board state
-    // Add new components, connections, etc.
+    setState(() {
+      print('[MainScreen] Setting processing state to true.');
+      _isProcessingImage = true;
+    });
+
+    try {
+      var project = currentProject!;
+      for (final path in imagePaths) {
+        print('[MainScreen] Processing path: $path');
+        final enhancedPath = await image_processor.enhanceImage(path);
+        print('[MainScreen] Enhanced image path: $enhancedPath');
+        final newImage = pcbImageViewFromJson({
+          'id': DateTime.now().millisecondsSinceEpoch.toString(),
+          'path': enhancedPath,
+          'layer': 'top',
+          'componentPlacements': <String, dynamic>{},
+          'modification': imageModificationToJson(createDefaultImageModification()),
+        });
+        final updatedImages = List<PCBImageView>.from(project.pcbImages)
+          ..add(newImage);
+        project = project.copyWith(pcbImages: updatedImages);
+        print('[MainScreen] Added new image to project state.');
+      }
+
+      setState(() {
+        currentProject = project;
+        print('[MainScreen] Final project state updated.');
+      });
+    } catch (e) {
+      print('[MainScreen] Error during image drop processing: $e');
+    } finally {
+      setState(() {
+        print('[MainScreen] Setting processing state to false.');
+        _isProcessingImage = false;
+      });
+    }
   }
 
   void _addMeasurement(String type, dynamic value) {
     if (value is Map<String, dynamic>) {
-      // It's a new component
-      final newComponent = componentFromJson({
+      final newComponent = logicalComponentFromJson({
         'id': value['name'],
         'type': value['type'],
         'value': value['value'],
-        'position': positionToJson((x: 100, y: 100)), // Default position
+        'partNumber': '',
         'pins': <String, dynamic>{},
-        'layer': 'top',
       });
       setState(() {
         _draggingComponent = newComponent;
-      });
-    } else {
-      // It's a regular measurement
-      // Add measurement to service
-      setState(() {
-        // Update UI
       });
     }
   }
 
   void _handleTap(Offset position) {
-    if (_draggingComponent != null) {
+    if (_draggingComponent != null && currentProject != null) {
+      final logicalComponent = _draggingComponent!;
+      final newSymbol = symbolFromJson({
+        'id': 'sym_${DateTime.now().millisecondsSinceEpoch}',
+        'logicalComponentId': logicalComponent.id,
+        'position': positionToJson((x: position.dx, y: position.dy)),
+        'rotation': 0.0,
+      });
+
+      final newSymbols = Map<String, Symbol>.from(currentProject!.schematic.symbols);
+      newSymbols[newSymbol.id] = newSymbol;
+
+      final newLogicalComponents = Map<String, LogicalComponent>.from(currentProject!.logicalComponents);
+      newLogicalComponents[logicalComponent.id] = logicalComponent;
+
+      final newSchematic = (symbols: newSymbols, wires: currentProject!.schematic.wires);
+
       setState(() {
-        final newComponent = componentFromJson({
-          ...componentToJson(_draggingComponent!),
-          'position': positionToJson((x: position.dx, y: position.dy)),
-        });
-        currentBoard?.components[newComponent.id] = newComponent;
+        currentProject = currentProject!.copyWith(
+          logicalComponents: newLogicalComponents,
+          schematic: newSchematic,
+        );
         _draggingComponent = null;
       });
     }
   }
 
   void _updateImageModification(ImageModification mod) {
+    if (currentProject == null || currentProject!.pcbImages.isEmpty) return;
+
+    final imageToUpdate = currentProject!.pcbImages[_currentImageIndex];
+    final updatedImage = pcbImageViewFromJson({
+      ...pcbImageViewToJson(imageToUpdate),
+      'modification': imageModificationToJson(mod),
+    });
+
+    final newImages = List<PCBImageView>.from(currentProject!.pcbImages);
+    newImages[_currentImageIndex] = updatedImage;
+
     setState(() {
-      final imageId = currentBoard!.images[_currentIndex].id;
-      currentBoard!.imageModifications[imageId] = mod;
+      currentProject = currentProject!.copyWith(pcbImages: newImages);
     });
   }
 
-  Future<void> _captureImage() async {
-    // Open camera or file picker
-  }
-
   Future<void> _saveProject() async {
+    if (currentProject == null) return;
     String? outputFile = await FilePicker.platform.saveFile(
       dialogTitle: 'Please select an output file:',
       fileName: 'project.pcbrev',
@@ -202,7 +263,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
     if (outputFile != null) {
       final file = File(outputFile);
-      await file.writeAsString(jsonEncode(pcbBoardToJson(currentBoard!)));
+      await file.writeAsString(jsonEncode(projectToJson(currentProject!)));
     }
   }
 
@@ -213,14 +274,17 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       final file = File(result.files.single.path!);
       final content = await file.readAsString();
       setState(() {
-        currentBoard = pcbBoardFromJson(jsonDecode(content));
-        _currentIndex = 0;
+        currentProject = projectFromJson(jsonDecode(content));
+        _currentImageIndex = 0;
       });
     }
   }
 
   Future<void> _exportNetlist() async {
-    // Export netlist in various formats
+    if (currentProject == null) return;
+    final netlist = generateNetlistFromProject(currentProject!);
+    // Further export logic would go here
+    print(netlist);
   }
 }
 

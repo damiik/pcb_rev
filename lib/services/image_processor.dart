@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:image/image.dart' as img;
-import '../models/pcb_models.dart';
+import '../models/visual_models.dart';
 
 // --- Functional Refactoring ---
 
