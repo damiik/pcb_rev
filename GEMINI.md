@@ -23,6 +23,48 @@ Projekt odchodzi od nadmiernie rozbudowanego programowania obiektowego na rzecz 
 - **Stan jako rekord:** Stan komponentu lub serwisu jest reprezentowany przez pojedynczy, niezmienny rekord.
 - **Przejścia stanowe jako funkcje:** Zmiany stanu są realizowane przez czyste funkcje, które przyjmują stary stan jako argument i zwracają nowy, zaktualizowany stan. Unikaj bezpośredniej mutacji stanu.
 
+### 2.4. Wykorzystanie Pattern Matching do Destrukturyzacji Danych
+
+Zamiast ręcznych sprawdzeń typów i kaskadowych `if-else`, projekt preferuje użycie nowoczesnego **pattern matching** w instrukcjach `switch` do dekonstrukcji złożonych, niezmiennych obiektów danych. Zapewnia to bardziej deklaratywny, bezpieczny i czytelny kod.
+
+**Przykład (z `kicad_parser.dart`):**
+
+Poniższy kod parsuje listę S-wyrażeń. Zamiast ręcznie sprawdzać typ i długość listy, a następnie rzutować jej elementy, `switch` z pattern matchingiem robi to w jednym, deklaratywnym kroku.
+
+```dart
+// `element` jest obiektem typu SExpr (np. SList lub SAtom)
+switch (element) {
+  // Wzorzec dopasowuje SList, którego lista `elements`
+  // zaczyna się od SAtom z wartością 'version'.
+  // Wartość drugiego atomu jest przypisywana do zmiennej `v`.
+  case SList(
+    elements: [SAtom(value: 'version'), SAtom(value: final v), ...],
+  ):
+    version = v;
+
+  // Wzorzec dopasowuje SList zaczynający się od SAtom 'symbol'.
+  // Wartość drugiego atomu jest przypisywana do `name`,
+  // a reszta listy do zmiennej `rest`.
+  case SList(
+    elements: [
+      SAtom(value: 'symbol'),
+      SAtom(value: final name),
+      ...final rest, // Wzorzec "rest"
+    ],
+  ):
+    symbols.add(_parseSymbol(name, rest));
+
+  // Domyślny przypadek dla elementów, które nie pasują do wzorców.
+  default:
+    break;
+}
+```
+
+**Korzyści:**
+- **Bezpieczeństwo typów:** Dopasowanie wzorca gwarantuje, że obiekt ma oczekiwaną strukturę przed próbą dostępu do jego pól.
+- **Zwięzłość:** Eliminuje potrzebę pisania zagnieżdżonych warunków i rzutowania typów.
+- **Czytelność:** Struktura wzorca wizualnie odzwierciedla strukturę danych, którą ma dopasować.
+
 ## 3. Architektura Funkcyjna
 
 ### 3.1. Modele Danych (`lib/models/`)

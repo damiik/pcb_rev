@@ -1,0 +1,436 @@
+// KiCad Symbol Library Parser
+// Functional parser using Dart's modern pattern matching and immutable data structures
+
+import 'dart:io';
+import 'dart:convert';
+import '../data/kicad_symbol_models.dart';
+
+import 'kicad_sexpr_parser.dart';
+import 'kicad_tokenizer.dart';
+
+// === Parser Implementation ===
+
+// === Semantic Parser ===
+
+final class KiCadParser {
+  static ParseResult<KiCadLibrary> parseLibrary(String content) {
+    final tokenizer = Tokenizer(content);
+    final tokens = tokenizer.tokenize();
+    final sexprParser = SExprParser(tokens);
+
+    return sexprParser.parse().fold(
+      (sexprs) => _parseLibraryFromSExprs(sexprs),
+      (error) => ParseResult.failure(error),
+    );
+  }
+
+  static ParseResult<KiCadLibrary> _parseLibraryFromSExprs(List<SExpr> sexprs) {
+    try {
+      // Look for either kicad_symbol_lib or kicad_sch format
+      final libraryExpr =
+          sexprs.firstWhere(
+                (expr) => switch (expr) {
+                  SList(
+                    elements: [
+                      SAtom(value: 'kicad_symbol_lib' || 'kicad_sch'),
+                      ...,
+                    ],
+                  ) =>
+                    true,
+                  _ => false,
+                },
+                orElse: () =>
+                    throw Exception('No kicad_symbol_lib or kicad_sch found'),
+              )
+              as SList;
+
+      return ParseResult.success(parseLibraryExpr(libraryExpr));
+    } catch (e) {
+      return ParseResult.failure('Library parsing error: $e');
+    }
+  }
+
+  static KiCadLibrary parseLibraryExpr(SList expr) {
+    var version = '20211014';
+    var generator = 'unknown';
+    final symbols = <Symbol>[];
+
+    for (final element in expr.elements.skip(1)) {
+      switch (element) {
+        case SList(
+          elements: [SAtom(value: 'version'), SAtom(value: final v), ...],
+        ):
+          version = v;
+        case SList(
+          elements: [SAtom(value: 'generator'), SAtom(value: final g), ...],
+        ):
+          generator = g;
+        case SList(
+          elements: [
+            SAtom(value: 'symbol'),
+            SAtom(value: final name),
+            ...final rest,
+          ],
+        ):
+          symbols.add(parseSymbol(name, rest));
+        default:
+          break;
+      }
+    }
+
+    return KiCadLibrary(
+      version: version,
+      generator: generator,
+      symbols: symbols,
+    );
+  }
+
+  static Symbol parseSymbol(String name, List<SExpr> elements) {
+    var pinNames = const PinNames(offset: 1.016);
+    var inBom = true;
+    var onBoard = true;
+    final properties = <Property>[];
+    final units = <SymbolUnit>[];
+
+    for (final element in elements) {
+      switch (element) {
+        case SList(
+          elements: [
+            SAtom(value: 'pin_names'),
+            SList(
+              elements: [SAtom(value: 'offset'), SAtom(value: final v), ...],
+            ),
+            ...,
+          ],
+        ):
+          pinNames = PinNames(offset: double.parse(v));
+        case SList(
+          elements: [SAtom(value: 'in_bom'), SAtom(value: final v), ...],
+        ):
+          inBom = v == 'yes';
+        case SList(
+          elements: [SAtom(value: 'on_board'), SAtom(value: final v), ...],
+        ):
+          onBoard = v == 'yes';
+        case SList(elements: [SAtom(value: 'property'), ...final propElements]):
+          properties.add(parseProperty(propElements));
+        case SList(
+          elements: [
+            SAtom(value: 'symbol'),
+            SAtom(value: final unitName),
+            ...final unitElements,
+          ],
+        ):
+          units.add(parseSymbolUnit(unitName, unitElements));
+        default:
+          break;
+      }
+    }
+
+    return Symbol(
+      name: name,
+      pinNames: pinNames,
+      inBom: inBom,
+      onBoard: onBoard,
+      properties: properties,
+      units: units,
+    );
+  }
+
+  static Property parseProperty(List<SExpr> elements) {
+    final name = (elements[0] as SAtom).value;
+    final value = (elements[1] as SAtom).value;
+    var id = 0;
+    var position = const Position(0, 0);
+    var hidden = false;
+    var effects = const TextEffects(
+      font: Font(width: 1.27, height: 1.27),
+      justify: Justify.left,
+    );
+
+    for (final element in elements.skip(2)) {
+      switch (element) {
+        case SList(
+          elements: [SAtom(value: 'id'), SAtom(value: final idVal), ...],
+        ):
+          id = int.parse(idVal);
+        case SList(
+          elements: [
+            SAtom(value: 'at'),
+            SAtom(value: final x),
+            SAtom(value: final y),
+            SAtom(value: final angle),
+            ...,
+          ],
+        ):
+          position = Position(
+            double.parse(x),
+            double.parse(y),
+            double.parse(angle),
+          );
+        case SList(
+          elements: [SAtom(value: 'effects'), ...final effectElements],
+        ):
+          effects = parseTextEffects(effectElements);
+        case SAtom(value: 'hide'):
+          hidden = true;
+        default:
+          break;
+      }
+    }
+
+    return Property(
+      name: name,
+      value: value,
+      id: id,
+      position: position,
+      effects: effects,
+      hidden: hidden,
+    );
+  }
+
+  static SymbolUnit parseSymbolUnit(String name, List<SExpr> elements) {
+    final graphics = <GraphicElement>[];
+    final pins = <Pin>[];
+    final unitNumberMatch = RegExp(r'_(\d+)_\d+$').firstMatch(name);
+    final unitNumber = unitNumberMatch?.group(1) != null
+        ? int.parse(unitNumberMatch!.group(1)!)
+        : 0;
+
+    for (final element in elements) {
+      switch (element) {
+        case SList(
+          elements: [SAtom(value: 'rectangle'), ...final rectElements],
+        ):
+          graphics.add(parseRectangle(rectElements));
+        case SList(elements: [SAtom(value: 'pin'), ...final pinElements]):
+          pins.add(parsePin(pinElements));
+        default:
+          break;
+      }
+    }
+
+    return SymbolUnit(
+      name: name,
+      unitNumber: unitNumber,
+      graphics: graphics,
+      pins: pins,
+    );
+  }
+
+  static Rectangle parseRectangle(List<SExpr> elements) {
+    Position? start, end;
+    var stroke = const Stroke(width: 0.254);
+    var fill = const Fill(type: FillType.none);
+
+    for (final element in elements) {
+      switch (element) {
+        case SList(
+          elements: [
+            SAtom(value: 'start'),
+            SAtom(value: final x),
+            SAtom(value: final y),
+            ...,
+          ],
+        ):
+          start = Position(double.parse(x), double.parse(y));
+        case SList(
+          elements: [
+            SAtom(value: 'end'),
+            SAtom(value: final x),
+            SAtom(value: final y),
+            ...,
+          ],
+        ):
+          end = Position(double.parse(x), double.parse(y));
+        case SList(
+          elements: [
+            SAtom(value: 'stroke'),
+            SList(
+              elements: [SAtom(value: 'width'), SAtom(value: final w), ...],
+            ),
+            ...,
+          ],
+        ):
+          stroke = Stroke(width: double.parse(w));
+        case SList(
+          elements: [
+            SAtom(value: 'fill'),
+            SList(elements: [SAtom(value: 'type'), SAtom(value: final t), ...]),
+            ...,
+          ],
+        ):
+          fill = Fill(type: parseFillType(t));
+        default:
+          break;
+      }
+    }
+
+    return Rectangle(
+      start: start ?? const Position(0, 0),
+      end: end ?? const Position(0, 0),
+      stroke: stroke,
+      fill: fill,
+    );
+  }
+
+  static Pin parsePin(List<SExpr> elements) {
+    var type = PinType.unspecified;
+    var style = PinStyle.line;
+    var position = const Position(0, 0);
+    var length = 2.54;
+    var name = '';
+    var number = '';
+    var nameEffects = const TextEffects(
+      font: Font(width: 1.016, height: 1.016),
+      justify: Justify.left,
+    );
+    var numberEffects = const TextEffects(
+      font: Font(width: 1.016, height: 1.016),
+      justify: Justify.left,
+    );
+
+    // Parse pin type and style
+    if (elements case [SAtom(value: final typeStr), ...]) {
+      type = parsePinType(typeStr);
+    }
+    if (elements case [_, SAtom(value: final styleStr), ...]) {
+      style = parsePinStyle(styleStr);
+    }
+
+    for (final element in elements.skip(2)) {
+      switch (element) {
+        case SList(
+          elements: [
+            SAtom(value: 'at'),
+            SAtom(value: final x),
+            SAtom(value: final y),
+            SAtom(value: final angle),
+            ...,
+          ],
+        ):
+          position = Position(
+            double.parse(x),
+            double.parse(y),
+            double.parse(angle),
+          );
+        case SList(
+          elements: [SAtom(value: 'length'), SAtom(value: final l), ...],
+        ):
+          length = double.parse(l);
+        case SList(
+          elements: [SAtom(value: 'name'), SAtom(value: final n), ...],
+        ):
+          name = n;
+        case SList(
+          elements: [SAtom(value: 'number'), SAtom(value: final n), ...],
+        ):
+          number = n;
+        default:
+          break;
+      }
+    }
+
+    return Pin(
+      type: type,
+      style: style,
+      position: position,
+      angle: position.angle,
+      length: length,
+      name: name,
+      number: number,
+      nameEffects: nameEffects,
+      numberEffects: numberEffects,
+    );
+  }
+
+  // === Helper Parsers ===
+
+  static Position parsePosition(List<double> coords) {
+    return switch (coords.length) {
+      >= 3 => Position(coords[0], coords[1], coords[2]),
+      >= 2 => Position(coords[0], coords[1]),
+      _ => const Position(0, 0),
+    };
+  }
+
+  static TextEffects parseTextEffects(List<SExpr> elements) {
+    var font = const Font(width: 1.27, height: 1.27);
+    var justify = Justify.left;
+
+    for (final element in elements) {
+      switch (element) {
+        case SList(
+          elements: [
+            SAtom(value: 'font'),
+            SList(
+              elements: [
+                SAtom(value: 'size'),
+                SAtom(value: final w),
+                SAtom(value: final h),
+                ...,
+              ],
+            ),
+            ...,
+          ],
+        ):
+          font = Font(width: double.parse(w), height: double.parse(h));
+        case SList(
+          elements: [SAtom(value: 'justify'), SAtom(value: final j), ...],
+        ):
+          justify = parseJustify(j);
+        default:
+          break;
+      }
+    }
+
+    return TextEffects(font: font, justify: justify);
+  }
+
+  static PinType parsePinType(String type) => switch (type) {
+    'input' => PinType.input,
+    'output' => PinType.output,
+    'bidirectional' => PinType.bidirectional,
+    'tri_state' => PinType.tristate,
+    'passive' => PinType.passive,
+    'power_in' => PinType.powerIn,
+    'power_out' => PinType.powerOut,
+    'open_collector' => PinType.openCollector,
+    'open_emitter' => PinType.openEmitter,
+    'no_connect' => PinType.notConnected,
+    _ => PinType.unspecified,
+  };
+
+  static PinStyle parsePinStyle(String style) => switch (style) {
+    'line' => PinStyle.line,
+    'inverted' => PinStyle.inverted,
+    'clock' => PinStyle.clock,
+    'inverted_clock' => PinStyle.invertedClock,
+    'input_low' => PinStyle.inputLow,
+    'clock_low' => PinStyle.clockLow,
+    'output_low' => PinStyle.outputLow,
+    'edge_clock_high' => PinStyle.edgeClockHigh,
+    'non_logic' => PinStyle.nonLogic,
+    _ => PinStyle.line,
+  };
+
+  static FillType parseFillType(String type) => switch (type) {
+    'none' => FillType.none,
+    'outline' => FillType.outline,
+    'background' => FillType.background,
+    _ => FillType.none,
+  };
+
+  static Justify parseJustify(String justify) => switch (justify) {
+    'left' => Justify.left,
+    'right' => Justify.right,
+    'center' => Justify.center,
+    'top' => Justify.top,
+    'bottom' => Justify.bottom,
+    'top_left' => Justify.topLeft,
+    'top_right' => Justify.topRight,
+    'bottom_left' => Justify.bottomLeft,
+    'bottom_right' => Justify.bottomRight,
+    _ => Justify.left,
+  };
+}

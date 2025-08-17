@@ -2,6 +2,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../../data/logical_models.dart';
+import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_loader.dart';
+import 'package:pcb_rev/features/symbol_library/presentation/kicad_symbol_renderer.dart';
 
 void drawComponentSymbol(
   ui.Canvas canvas,
@@ -93,75 +95,182 @@ void drawIC(
   // Draw notch
   canvas.drawCircle(pos + Offset(-width / 2, 0), 3, paint);
 }
-void drawIC8pin(ui.Canvas canvas, Offset pos, LogicalComponent component, Paint paint, Paint fillPaint) {
+
+void drawIC8pin(
+  ui.Canvas canvas,
+  Offset pos,
+  LogicalComponent component,
+  Paint paint,
+  Paint fillPaint,
+) {
   final rect = Rect.fromCenter(center: pos, width: 40, height: 20);
   canvas.drawRect(rect, fillPaint);
   canvas.drawRect(rect, paint);
   for (int i = 0; i < 4; i++) {
-    canvas.drawLine(pos + Offset(-15 + i * 10, -10), pos + Offset(-15 + i * 10, -20), paint);
-    canvas.drawLine(pos + Offset(-15 + i * 10, 10), pos + Offset(-15 + i * 10, 20), paint);
+    canvas.drawLine(
+      pos + Offset(-15 + i * 10, -10),
+      pos + Offset(-15 + i * 10, -20),
+      paint,
+    );
+    canvas.drawLine(
+      pos + Offset(-15 + i * 10, 10),
+      pos + Offset(-15 + i * 10, 20),
+      paint,
+    );
   }
 }
 
-void drawIC16pin(ui.Canvas canvas, Offset pos, LogicalComponent component, Paint paint, Paint fillPaint) {
+void drawIC16pin(
+  ui.Canvas canvas,
+  Offset pos,
+  LogicalComponent component,
+  Paint paint,
+  Paint fillPaint,
+) {
   final rect = Rect.fromCenter(center: pos, width: 80, height: 20);
   canvas.drawRect(rect, fillPaint);
   canvas.drawRect(rect, paint);
   for (int i = 0; i < 8; i++) {
-    canvas.drawLine(pos + Offset(-35 + i * 10, -10), pos + Offset(-35 + i * 10, -20), paint);
-    canvas.drawLine(pos + Offset(-35 + i * 10, 10), pos + Offset(-35 + i * 10, 20), paint);
+    canvas.drawLine(
+      pos + Offset(-35 + i * 10, -10),
+      pos + Offset(-35 + i * 10, -20),
+      paint,
+    );
+    canvas.drawLine(
+      pos + Offset(-35 + i * 10, 10),
+      pos + Offset(-35 + i * 10, 20),
+      paint,
+    );
   }
 }
 
-void drawIC20pin(ui.Canvas canvas, Offset pos, LogicalComponent component, Paint paint, Paint fillPaint) {
+void drawIC20pin(
+  ui.Canvas canvas,
+  Offset pos,
+  LogicalComponent component,
+  Paint paint,
+  Paint fillPaint,
+) {
   final rect = Rect.fromCenter(center: pos, width: 100, height: 20);
   canvas.drawRect(rect, fillPaint);
   canvas.drawRect(rect, paint);
   for (int i = 0; i < 10; i++) {
-    canvas.drawLine(pos + Offset(-45 + i * 10, -10), pos + Offset(-45 + i * 10, -20), paint);
-    canvas.drawLine(pos + Offset(-45 + i * 10, 10), pos + Offset(-45 + i * 10, 20), paint);
+    canvas.drawLine(
+      pos + Offset(-45 + i * 10, -10),
+      pos + Offset(-45 + i * 10, -20),
+      paint,
+    );
+    canvas.drawLine(
+      pos + Offset(-45 + i * 10, 10),
+      pos + Offset(-45 + i * 10, 20),
+      paint,
+    );
   }
 }
 
-void drawIC24pin(ui.Canvas canvas, Offset pos, LogicalComponent component, Paint paint, Paint fillPaint) {
+void drawIC24pin(
+  ui.Canvas canvas,
+  Offset pos,
+  LogicalComponent component,
+  Paint paint,
+  Paint fillPaint,
+) {
   final rect = Rect.fromCenter(center: pos, width: 120, height: 20);
   canvas.drawRect(rect, fillPaint);
   canvas.drawRect(rect, paint);
   for (int i = 0; i < 12; i++) {
-    canvas.drawLine(pos + Offset(-55 + i * 10, -10), pos + Offset(-55 + i * 10, -20), paint);
-    canvas.drawLine(pos + Offset(-55 + i * 10, 10), pos + Offset(-55 + i * 10, 20), paint);
+    canvas.drawLine(
+      pos + Offset(-55 + i * 10, -10),
+      pos + Offset(-55 + i * 10, -20),
+      paint,
+    );
+    canvas.drawLine(
+      pos + Offset(-55 + i * 10, 10),
+      pos + Offset(-55 + i * 10, 20),
+      paint,
+    );
   }
 }
 
-void drawIC28pin(ui.Canvas canvas, Offset pos, LogicalComponent component, Paint paint, Paint fillPaint) {
+void drawIC28pin(
+  ui.Canvas canvas,
+  Offset pos,
+  LogicalComponent component,
+  Paint paint,
+  Paint fillPaint,
+) {
   final rect = Rect.fromCenter(center: pos, width: 140, height: 20);
   canvas.drawRect(rect, fillPaint);
   canvas.drawRect(rect, paint);
   for (int i = 0; i < 14; i++) {
-    canvas.drawLine(pos + Offset(-65 + i * 10, -10), pos + Offset(-65 + i * 10, -20), paint);
-    canvas.drawLine(pos + Offset(-65 + i * 10, 10), pos + Offset(-65 + i * 10, 20), paint);
+    canvas.drawLine(
+      pos + Offset(-65 + i * 10, -10),
+      pos + Offset(-65 + i * 10, -20),
+      paint,
+    );
+    canvas.drawLine(
+      pos + Offset(-65 + i * 10, 10),
+      pos + Offset(-65 + i * 10, 20),
+      paint,
+    );
   }
 }
 
-void drawIC32pin(ui.Canvas canvas, Offset pos, LogicalComponent component, Paint paint, Paint fillPaint) {
+void drawIC32pin(
+  ui.Canvas canvas,
+  Offset pos,
+  LogicalComponent component,
+  Paint paint,
+  Paint fillPaint,
+) {
   final rect = Rect.fromCenter(center: pos, width: 160, height: 20);
   canvas.drawRect(rect, fillPaint);
   canvas.drawRect(rect, paint);
   for (int i = 0; i < 16; i++) {
-    canvas.drawLine(pos + Offset(-75 + i * 10, -10), pos + Offset(-75 + i * 10, -20), paint);
-    canvas.drawLine(pos + Offset(-75 + i * 10, 10), pos + Offset(-75 + i * 10, 20), paint);
+    canvas.drawLine(
+      pos + Offset(-75 + i * 10, -10),
+      pos + Offset(-75 + i * 10, -20),
+      paint,
+    );
+    canvas.drawLine(
+      pos + Offset(-75 + i * 10, 10),
+      pos + Offset(-75 + i * 10, 20),
+      paint,
+    );
   }
 }
 
-void drawIC48pinQ(ui.Canvas canvas, Offset pos, LogicalComponent component, Paint paint, Paint fillPaint) {
+void drawIC48pinQ(
+  ui.Canvas canvas,
+  Offset pos,
+  LogicalComponent component,
+  Paint paint,
+  Paint fillPaint,
+) {
   final rect = Rect.fromCenter(center: pos, width: 120, height: 120);
   canvas.drawRect(rect, fillPaint);
   canvas.drawRect(rect, paint);
   for (int i = 0; i < 12; i++) {
-    canvas.drawLine(pos + Offset(-60, -55 + i * 10), pos + Offset(-70, -55 + i * 10), paint);
-    canvas.drawLine(pos + Offset(60, -55 + i * 10), pos + Offset(70, -55 + i * 10), paint);
-    canvas.drawLine(pos + Offset(-55 + i * 10, -60), pos + Offset(-55 + i * 10, -70), paint);
-    canvas.drawLine(pos + Offset(-55 + i * 10, 60), pos + Offset(-55 + i * 10, 70), paint);
+    canvas.drawLine(
+      pos + Offset(-60, -55 + i * 10),
+      pos + Offset(-70, -55 + i * 10),
+      paint,
+    );
+    canvas.drawLine(
+      pos + Offset(60, -55 + i * 10),
+      pos + Offset(70, -55 + i * 10),
+      paint,
+    );
+    canvas.drawLine(
+      pos + Offset(-55 + i * 10, -60),
+      pos + Offset(-55 + i * 10, -70),
+      paint,
+    );
+    canvas.drawLine(
+      pos + Offset(-55 + i * 10, 60),
+      pos + Offset(-55 + i * 10, 70),
+      paint,
+    );
   }
 }
 

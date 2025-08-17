@@ -8,12 +8,16 @@ import '../../../features/measurement/data/measurement_service.dart'
 import '../../../features/pcb_viewer/data/image_modification.dart';
 import '../../../features/pcb_viewer/presentation/pcb_viewer_panel.dart';
 import '../../../features/schematic/data/logical_models.dart';
-import '../../../features/schematic/data/visual_models.dart';
+import '../../../features/schematic/data/visual_models.dart' as visual_models;
 import '../../../features/global_list/presentation/widgets/global_list_panel.dart';
 import '../../measurement/presentation/properties_panel.dart';
 import '../data/project.dart';
 import 'package:pcb_rev/features/pcb_viewer/data/image_processor.dart'
     as image_processor;
+import '../../symbol_library/data/kicad_symbol_models.dart';
+import '../../symbol_library/data/kicad_schematic_models.dart';
+import '../../symbol_library/data/kicad_schematic_loader.dart';
+import '../../symbol_library/presentation/schematic_view.dart';
 
 class PCBAnalyzerApp extends StatefulWidget {
   @override
@@ -28,6 +32,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   measurement_service.MeasurementState measurementState = measurement_service
       .createInitialMeasurementState();
   bool _dragging = false;
+  KiCadSchematic? _loadedSchematic;
 
   @override
   void initState() {
@@ -75,6 +80,11 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
           appBar: AppBar(
             title: Text(currentProject?.name ?? 'PCB Analyzer'),
             actions: [
+              IconButton(
+                icon: Icon(Icons.description),
+                onPressed: _loadSchematic,
+                tooltip: 'Load KiCad Schematic',
+              ),
               IconButton(
                 icon: Icon(Icons.folder_open),
                 onPressed: _openProject,
@@ -137,6 +147,28 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         ),
       ),
     );
+  }
+
+  Future<void> _loadSchematic() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['kicad_sch'],
+    );
+
+    if (result != null) {
+      final path = result.files.single.path!;
+      final loader = KiCadSchematicLoader(path);
+      try {
+        final schematic = await loader.load();
+        setState(() {
+          _loadedSchematic = schematic;
+          // You might want to integrate the loaded schematic into your project state here
+        });
+      } catch (e) {
+        // Handle parsing errors, e.g., show a dialog
+        print('Error loading schematic: $e');
+      }
+    }
   }
 
   void _navigateImages(int delta) {
@@ -224,14 +256,17 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void _handleTap(Offset position) {
     if (_draggingComponent != null && currentProject != null) {
       final logicalComponent = _draggingComponent!;
-      final newSymbol = symbolFromJson({
+      final newSymbol = visual_models.symbolFromJson({
         'id': 'sym_${DateTime.now().millisecondsSinceEpoch}',
         'logicalComponentId': logicalComponent.id,
-        'position': positionToJson((x: position.dx, y: position.dy)),
+        'position': visual_models.positionToJson((
+          x: position.dx,
+          y: position.dy,
+        )),
         'rotation': 0.0,
       });
 
-      final newSymbols = Map<String, Symbol>.from(
+      final newSymbols = Map<String, visual_models.Symbol>.from(
         currentProject!.schematic.symbols,
       );
       newSymbols[newSymbol.id] = newSymbol;
