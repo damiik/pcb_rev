@@ -37,26 +37,29 @@ Pin pinFromJson(Map<String, dynamic> json) => (
 typedef LogicalComponent = ({
   String id,
   String type,
+  String? variant,
   String? value,
   String? partNumber,
   Map<String, Pin> pins,
 });
 Map<String, dynamic> logicalComponentToJson(LogicalComponent c) => {
-  'id': c.id,
-  'type': c.type,
-  'value': c.value,
-  'partNumber': c.partNumber,
-  'pins': c.pins.map((k, v) => MapEntry(k, pinToJson(v))),
-};
+      'id': c.id,
+      'type': c.type,
+      'variant': c.variant,
+      'value': c.value,
+      'partNumber': c.partNumber,
+      'pins': c.pins.map((k, v) => MapEntry(k, pinToJson(v))),
+    };
 LogicalComponent logicalComponentFromJson(Map<String, dynamic> json) => (
-  id: json['id'] as String,
-  type: json['type'] as String,
-  value: json['value'] as String?,
-  partNumber: json['partNumber'] as String?,
-  pins: (json['pins'] as Map<String, dynamic>).map(
-    (k, v) => MapEntry(k, pinFromJson(v as Map<String, dynamic>)),
-  ),
-);
+      id: json['id'] as String,
+      type: json['type'] as String,
+      variant: json['variant'] as String?,
+      value: json['value'] as String?,
+      partNumber: json['partNumber'] as String?,
+      pins: (json['pins'] as Map<String, dynamic>).map(
+        (k, v) => MapEntry(k, pinFromJson(v as Map<String, dynamic>)),
+      ),
+    );
 
 // --- LogicalNet ---
 typedef LogicalNet = ({

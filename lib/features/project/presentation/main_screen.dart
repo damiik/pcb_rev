@@ -1,7 +1,5 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:convert';
-import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -14,9 +12,6 @@ import '../../../features/schematic/data/visual_models.dart';
 import '../../../features/global_list/presentation/widgets/global_list_panel.dart';
 import '../../measurement/presentation/properties_panel.dart';
 import '../data/project.dart';
-import 'package:desktop_drop/desktop_drop.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:flutter/material.dart';
 import 'package:pcb_rev/features/pcb_viewer/data/image_processor.dart'
     as image_processor;
 

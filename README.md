@@ -135,6 +135,18 @@ Kluczowym elementem architektury jest rozdzielenie **modelu logicznego** od jego
 
 Projekt jest w fazie aktywnego rozwoju, a poniżej przedstawiono kluczowe aspekty obecnej implementacji.
 
+### 4.2. Interfejs Użytkownika (UI)
+
+Interfejs użytkownika jest zbudowany z komponentów Flutter i podzielony na mniejsze, reużywalne widżety:
+
+- **`main_screen.dart`**: Główny ekran aplikacji, agregujący pozostałe panele.
+- **`global_list_panel.dart`**: Panel wyświetlający listy komponentów i sieci.
+- **`pcb_viewer_panel.dart`**: Centralny panel do wyświetlania obrazów PCB, obsługujący przeciąganie i upuszczanie plików, nawigację między obrazami oraz kontrolki do ich modyfikacji.
+- **`properties_panel.dart`**: Panel boczny do wyświetlania właściwości i zarządzania pomiarami.
+- **`schematic_painter.dart`**: Widget odpowiedzialny za rysowanie schematu.
+- **`wire_painter.dart`**: Widget odpowiedzialny za rysowanie połączeń na schemacie.
+- **`component_painters.dart`**: Zestaw funkcji do rysowania symboli komponentów.
+
 ### 4.1. Struktura Projektu
 
 ```
