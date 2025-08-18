@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../../../features/measurement/data/measurement_service.dart'
     as measurement_service;
@@ -17,7 +18,10 @@ import 'package:pcb_rev/features/pcb_viewer/data/image_processor.dart'
 import '../../symbol_library/data/kicad_symbol_models.dart';
 import '../../symbol_library/data/kicad_schematic_models.dart';
 import '../../symbol_library/data/kicad_schematic_loader.dart';
+import '../../symbol_library/data/kicad_symbol_loader.dart';
 import '../../symbol_library/presentation/schematic_view.dart';
+
+enum ViewMode { pcb, schematic }
 
 class PCBAnalyzerApp extends StatefulWidget {
   @override
@@ -25,6 +29,7 @@ class PCBAnalyzerApp extends StatefulWidget {
 }
 
 class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
+  ViewMode _currentView = ViewMode.pcb;
   Project? currentProject;
   int _currentImageIndex = 0;
   LogicalComponent? _draggingComponent;
@@ -33,28 +38,52 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       .createInitialMeasurementState();
   bool _dragging = false;
   KiCadSchematic? _loadedSchematic;
+  KiCadSymbolLoader? _symbolLoader;
 
   @override
   void initState() {
     super.initState();
     _initializeProject();
+    _loadDefaultSymbolLibrary();
   }
 
   void _initializeProject() {
     setState(() {
       currentProject = projectFromJson({
         'id': '1',
-        'name': 'My Project',
+        'name': 'New Project',
         'lastUpdated': DateTime.now().toIso8601String(),
         'logicalComponents': <String, dynamic>{},
         'logicalNets': <String, dynamic>{},
-        'schematic': {
-          'symbols': <String, dynamic>{},
-          'wires': <String, dynamic>{},
-        },
+        'schematicFilePath': null, // No schematic loaded initially
         'pcbImages': <dynamic>[],
       });
     });
+  }
+
+  void _loadDefaultSymbolLibrary() async {
+    try {
+      final libraryPath =
+          'lib/features/symbol_library/data/example_kicad_symbols.kicad_sym';
+      final loader = KiCadSymbolLoader(libraryPath);
+      setState(() {
+        _symbolLoader = loader;
+      });
+
+      // Try to load the default schematic
+      _loadDefaultSchematic();
+    } catch (e) {
+      print('Error loading default symbol library: $e');
+    }
+  }
+
+  Future<void> _loadDefaultSchematic() async {
+    final defaultSchematicPath = 'test/kiProject1/kiProject1.kicad_sch';
+    final file = File(defaultSchematicPath);
+
+    if (await file.exists()) {
+      await _loadSchematicFile(defaultSchematicPath);
+    }
   }
 
   @override
@@ -80,6 +109,21 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
           appBar: AppBar(
             title: Text(currentProject?.name ?? 'PCB Analyzer'),
             actions: [
+              ToggleButtons(
+                isSelected: [
+                  _currentView == ViewMode.pcb,
+                  _currentView == ViewMode.schematic,
+                ],
+                onPressed: (index) {
+                  setState(() {
+                    _currentView = index == 0
+                        ? ViewMode.pcb
+                        : ViewMode.schematic;
+                  });
+                },
+                children: [Icon(Icons.image), Icon(Icons.schema)],
+              ),
+              SizedBox(width: 20),
               IconButton(
                 icon: Icon(Icons.description),
                 onPressed: _loadSchematic,
@@ -108,20 +152,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                       onNetSelected: _selectNet,
                     ),
                   ),
-                  Expanded(
-                    flex: 5,
-                    child: PCBViewerPanel(
-                      project: currentProject,
-                      isProcessingImage: _isProcessingImage,
-                      draggingComponent: _draggingComponent,
-                      currentIndex: _currentImageIndex,
-                      onImageDrop: _handleImageDrop,
-                      onNext: () => _navigateImages(1),
-                      onPrevious: () => _navigateImages(-1),
-                      onImageModification: _updateImageModification,
-                      onTap: _handleTap,
-                    ),
-                  ),
+                  Expanded(flex: 5, child: _buildMainPanel()),
                   Expanded(
                     flex: 3,
                     child: PropertiesPanel(
@@ -149,25 +180,88 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     );
   }
 
+  Widget _buildMainPanel() {
+    switch (_currentView) {
+      case ViewMode.schematic:
+        if (_loadedSchematic != null) {
+          return SchematicView(schematic: _loadedSchematic!);
+        } else {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('No schematic loaded.'),
+                SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: _loadSchematic,
+                  child: Text('Load KiCad Schematic'),
+                ),
+              ],
+            ),
+          );
+        }
+      case ViewMode.pcb:
+      default:
+        return PCBViewerPanel(
+          project: currentProject,
+          isProcessingImage: _isProcessingImage,
+          draggingComponent: _draggingComponent,
+          currentIndex: _currentImageIndex,
+          onImageDrop: _handleImageDrop,
+          onNext: () => _navigateImages(1),
+          onPrevious: () => _navigateImages(-1),
+          onImageModification: _updateImageModification,
+          onTap: _handleTap,
+          symbolLoader: _symbolLoader,
+        );
+    }
+  }
+
   Future<void> _loadSchematic() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['kicad_sch'],
-    );
+    FilePickerResult? result;
+    if (!kIsWeb && Platform.isLinux) {
+      result = await FilePicker.platform.pickFiles(type: FileType.any);
+    } else {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['kicad_sch'],
+      );
+    }
 
     if (result != null) {
       final path = result.files.single.path!;
-      final loader = KiCadSchematicLoader(path);
-      try {
-        final schematic = await loader.load();
-        setState(() {
-          _loadedSchematic = schematic;
-          // You might want to integrate the loaded schematic into your project state here
-        });
-      } catch (e) {
-        // Handle parsing errors, e.g., show a dialog
-        print('Error loading schematic: $e');
+      if (Platform.isLinux && !path.endsWith('.kicad_sch')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Invalid file type. Please select a .kicad_sch file.',
+            ),
+          ),
+        );
+        return;
       }
+      await _loadSchematicFile(path, switchToView: true);
+    }
+  }
+
+  Future<void> _loadSchematicFile(
+    String path, {
+    bool switchToView = false,
+  }) async {
+    final loader = KiCadSchematicLoader(path);
+    try {
+      final schematic = await loader.load();
+      setState(() {
+        _loadedSchematic = schematic;
+        if (switchToView) {
+          _currentView = ViewMode.schematic;
+        }
+        if (currentProject != null) {
+          currentProject = currentProject!.copyWith(schematicFilePath: path);
+        }
+      });
+    } catch (e) {
+      print('Error loading schematic file: $e');
     }
   }
 
@@ -226,6 +320,8 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
       setState(() {
         currentProject = project;
+        _currentView = ViewMode.pcb; // Switch to pcb view to show the new image
+        _currentImageIndex = project.pcbImages.length - 1;
         print('[MainScreen] Final project state updated.');
       });
     } catch (e) {
@@ -254,40 +350,13 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   }
 
   void _handleTap(Offset position) {
-    if (_draggingComponent != null && currentProject != null) {
-      final logicalComponent = _draggingComponent!;
-      final newSymbol = visual_models.symbolFromJson({
-        'id': 'sym_${DateTime.now().millisecondsSinceEpoch}',
-        'logicalComponentId': logicalComponent.id,
-        'position': visual_models.positionToJson((
-          x: position.dx,
-          y: position.dy,
-        )),
-        'rotation': 0.0,
-      });
-
-      final newSymbols = Map<String, visual_models.Symbol>.from(
-        currentProject!.schematic.symbols,
-      );
-      newSymbols[newSymbol.id] = newSymbol;
-
-      final newLogicalComponents = Map<String, LogicalComponent>.from(
-        currentProject!.logicalComponents,
-      );
-      newLogicalComponents[logicalComponent.id] = logicalComponent;
-
-      final newSchematic = (
-        symbols: newSymbols,
-        wires: currentProject!.schematic.wires,
-      );
-
-      setState(() {
-        currentProject = currentProject!.copyWith(
-          logicalComponents: newLogicalComponents,
-          schematic: newSchematic,
-        );
-        _draggingComponent = null;
-      });
+    // This logic is part of the old workflow and might need to be adapted or removed.
+    if (_currentView == ViewMode.pcb &&
+        _draggingComponent != null &&
+        currentProject != null) {
+      // This logic for placing components on a PCB image is complex
+      // and needs to be reviewed in the context of the full application.
+      // For now, we'll leave it as is.
     }
   }
 
@@ -322,15 +391,33 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   }
 
   Future<void> _openProject() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      // type: FileType.custom,
+      // allowedExtensions: ['pcbrev'],
+    );
 
     if (result != null) {
       final file = File(result.files.single.path!);
+      if (!file.path.endsWith('.pcbrev')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Invalid file type. Please select a .pcbrev file.'),
+          ),
+        );
+        return;
+      }
       final content = await file.readAsString();
+      final project = projectFromJson(jsonDecode(content));
       setState(() {
-        currentProject = projectFromJson(jsonDecode(content));
+        currentProject = project;
         _currentImageIndex = 0;
+        _loadedSchematic = null;
+        _currentView = ViewMode.pcb;
       });
+
+      if (project.schematicFilePath != null) {
+        await _loadSchematicFile(project.schematicFilePath!);
+      }
     }
   }
 

@@ -7,27 +7,24 @@ import 'kicad_symbol_renderer.dart';
 
 /// Renderer for a full KiCad schematic.
 class KiCadSchematicRenderer {
+  final Map<String, Symbol> _symbolCache;
+
+  KiCadSchematicRenderer(this._symbolCache);
+
   /// Renders the entire schematic onto a canvas.
-  Future<void> render(
+  void render(
     ui.Canvas canvas,
     ui.Size size,
     KiCadSchematic schematic,
-  ) async {
-    if (schematic.library == null) {
-      // Or handle this case more gracefully
-      print("Warning: Schematic has no embedded symbol library.");
-      return;
-    }
-
-    // Create a loader and renderer on-the-fly for the schematic's embedded library
-    final symbolLoader = KiCadSymbolLoader.fromLibrary(schematic.library!);
-    final symbolRenderer = KiCadSymbolRenderer(symbolLoader);
+  ) {
+    // Create a renderer on-the-fly for the schematic's embedded library
+    final symbolRenderer = KiCadSymbolRenderer();
 
     // TODO: Add zoom and pan transformation
 
     _drawWires(canvas, schematic.wires);
     _drawJunctions(canvas, schematic.junctions);
-    await _drawSymbols(canvas, schematic.symbols, symbolRenderer);
+    _drawSymbols(canvas, schematic.symbols, symbolRenderer);
   }
 
   void _drawWires(ui.Canvas canvas, List<Wire> wires) {
@@ -56,11 +53,11 @@ class KiCadSchematicRenderer {
     }
   }
 
-  Future<void> _drawSymbols(
+  void _drawSymbols(
     ui.Canvas canvas,
     List<SymbolInstance> symbols,
     KiCadSymbolRenderer symbolRenderer,
-  ) async {
+  ) {
     final paint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
@@ -70,8 +67,14 @@ class KiCadSchematicRenderer {
       ..color = Colors.grey[900]!
       ..style = PaintingStyle.fill;
 
-    for (final symbol in symbols) {
-      final ref = symbol.properties
+    for (final symbolInstance in symbols) {
+      final symbol = _symbolCache[symbolInstance.libId];
+      if (symbol == null) {
+        print('Symbol not found in cache: ${symbolInstance.libId}');
+        continue;
+      }
+
+      final ref = symbolInstance.properties
           .firstWhere(
             (p) => p.name == 'Reference',
             orElse: () => Property(
@@ -86,7 +89,7 @@ class KiCadSchematicRenderer {
             ),
           )
           .value;
-      final value = symbol.properties
+      final value = symbolInstance.properties
           .firstWhere(
             (p) => p.name == 'Value',
             orElse: () => Property(
@@ -102,13 +105,13 @@ class KiCadSchematicRenderer {
           )
           .value;
 
-      await symbolRenderer.renderSymbol(
+      symbolRenderer.renderSymbol(
         canvas,
-        symbol.libId,
-        Offset(symbol.at.x, symbol.at.y),
+        symbol,
+        Offset(symbolInstance.at.x, symbolInstance.at.y),
         paint,
         fillPaint,
-        rotation: symbol.at.angle,
+        rotation: symbolInstance.at.angle,
         componentId: ref,
         componentValue: value,
       );

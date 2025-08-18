@@ -12,7 +12,16 @@ void drawComponentSymbol(
   Paint paint,
   Paint fillPaint, {
   bool isSelected = false,
+  KiCadSymbolLoader? symbolLoader,
 }) {
+  // If we have a KiCad symbol loader, try to use it
+  if (symbolLoader != null) {
+    // Try to find a matching KiCad symbol
+    final symbolName = _getKiCadSymbolName(component.type);
+    // For now, we'll draw the generic component if no symbol loader is provided
+    // In a full implementation, we would render the KiCad symbol
+  }
+  
   final componentPaint = paint..color = isSelected ? Colors.blue : Colors.white;
   final componentFillPaint = fillPaint..color = Colors.grey[900]!;
 
@@ -59,6 +68,22 @@ void drawComponentSymbol(
       break;
     default:
       drawGenericComponent(canvas, pos, componentPaint, componentFillPaint);
+  }
+}
+
+// Map component types to KiCad symbol names
+String _getKiCadSymbolName(String componentType) {
+  final type = componentType.toLowerCase();
+  switch (type) {
+    case 'resistor':
+      return 'R';
+    case 'capacitor':
+      return 'C_Polarized';
+    case 'ic':
+    case 'chip':
+      return 'STM32F030C6Tx'; // Example IC, would need more sophisticated mapping
+    default:
+      return type;
   }
 }
 

@@ -1,13 +1,10 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../../../features/project/data/project.dart';
 import '../../../features/schematic/data/logical_models.dart';
-import '../../../features/schematic/data/visual_models.dart';
-import '../../../features/schematic/presentation/widgets/schematic_painter.dart';
-import '../../../features/schematic/presentation/widgets/wire_painter.dart';
 import '../data/image_modification.dart';
+import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_loader.dart';
 
 class PCBViewerPanel extends StatefulWidget {
   final Project? project;
@@ -19,6 +16,7 @@ class PCBViewerPanel extends StatefulWidget {
   final VoidCallback onPrevious;
   final Function(ImageModification) onImageModification;
   final Function(Offset)? onTap;
+  final KiCadSymbolLoader? symbolLoader;
 
   PCBViewerPanel({
     this.project,
@@ -30,24 +28,15 @@ class PCBViewerPanel extends StatefulWidget {
     required this.onPrevious,
     required this.onImageModification,
     this.onTap,
+    this.symbolLoader,
   });
 
   @override
   _PCBViewerPanelState createState() => _PCBViewerPanelState();
 }
 
-class _PCBViewerPanelState extends State<PCBViewerPanel>
-    with SingleTickerProviderStateMixin {
-  final TransformationController _transformController =
-      TransformationController();
-  Offset? _mousePosition;
-  ViewMode _viewMode = ViewMode.schematic;
-  bool _showGrid = true;
-  bool _snapToGrid = true;
-  bool _showComponents = true;
-  bool _showNets = true;
-  Symbol? _selectedSymbol;
-  LogicalNet? _selectedNet;
+class _PCBViewerPanelState extends State<PCBViewerPanel> {
+  final TransformationController _transformController = TransformationController();
 
   ImageModification get _currentModification {
     if (widget.project != null && widget.project!.pcbImages.isNotEmpty) {
@@ -67,12 +56,12 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                if (widget.project == null ||
-                    (_viewMode == ViewMode.image &&
-                        widget.project!.pcbImages.isEmpty))
-                  Text(
-                    'Drop PCB images here',
-                    style: TextStyle(color: Colors.grey, fontSize: 24),
+                if (widget.project == null || widget.project!.pcbImages.isEmpty)
+                  Center(
+                    child: Text(
+                      'Drop PCB images here',
+                      style: TextStyle(color: Colors.grey, fontSize: 24),
+                    ),
                   )
                 else
                   _buildViewer(),
@@ -96,42 +85,8 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
       color: Colors.grey[900],
       child: Row(
         children: [
-          ToggleButtons(
-            children: [
-              Tooltip(child: Icon(Icons.image), message: 'Image View'),
-              Tooltip(child: Icon(Icons.schema), message: 'Schematic View'),
-            ],
-            isSelected: [
-              _viewMode == ViewMode.image,
-              _viewMode == ViewMode.schematic,
-            ],
-            onPressed: (index) =>
-                setState(() => _viewMode = ViewMode.values[index]),
-          ),
-          if (_viewMode == ViewMode.schematic) ...[
-            SizedBox(width: 16),
-            IconButton(
-              icon: Icon(Icons.grid_on),
-              color: _showGrid ? Colors.blue : Colors.grey,
-              onPressed: () => setState(() => _showGrid = !_showGrid),
-              tooltip: 'Toggle Grid',
-            ),
-            IconButton(
-              icon: Icon(Icons.gps_fixed),
-              color: _snapToGrid ? Colors.blue : Colors.grey,
-              onPressed: () => setState(() => _snapToGrid = !_snapToGrid),
-              tooltip: 'Snap to Grid',
-            ),
-            IconButton(
-              icon: Icon(Icons.electrical_services),
-              color: _showNets ? Colors.blue : Colors.grey,
-              onPressed: () => setState(() => _showNets = !_showNets),
-              tooltip: 'Show Nets',
-            ),
-          ],
           Spacer(),
-          if (_viewMode == ViewMode.image &&
-              widget.project!.pcbImages.isNotEmpty) ...[
+          if (widget.project != null && widget.project!.pcbImages.isNotEmpty) ...[
             IconButton(
               icon: Icon(Icons.arrow_back),
               onPressed: widget.currentIndex > 0 ? widget.onPrevious : null,
@@ -141,8 +96,7 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
             ),
             IconButton(
               icon: Icon(Icons.arrow_forward),
-              onPressed:
-                  widget.currentIndex < widget.project!.pcbImages.length - 1
+              onPressed: widget.currentIndex < widget.project!.pcbImages.length - 1
                   ? widget.onNext
                   : null,
             ),
@@ -158,72 +112,28 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
   }
 
   Widget _buildViewer() {
-    return Listener(
-      onPointerMove: (event) {
-        if (widget.draggingComponent != null) {
-          setState(() {
-            var localPosition = _transformController.toScene(
-              event.localPosition,
+    return InteractiveViewer(
+      transformationController: _transformController,
+      minScale: 0.1,
+      maxScale: 10.0,
+      child: GestureDetector(
+        onTapUp: (details) {
+          if (widget.onTap != null) {
+            final localPosition = _transformController.toScene(
+              details.localPosition,
             );
-            if (_snapToGrid) {
-              const gridSize = 20.0;
-              localPosition = Offset(
-                (localPosition.dx / gridSize).round() * gridSize,
-                (localPosition.dy / gridSize).round() * gridSize,
-              );
-            }
-            _mousePosition = localPosition;
-          });
-        }
-      },
-      child: InteractiveViewer(
-        transformationController: _transformController,
-        minScale: 0.1,
-        maxScale: 10.0,
-        child: GestureDetector(
-          onTapUp: (details) {
-            if (widget.onTap != null) {
-              final localPosition = _transformController.toScene(
-                details.localPosition,
-              );
-              widget.onTap!(localPosition);
-            }
-          },
-          child: Stack(
-            children: <Widget>[
-              if (_viewMode == ViewMode.schematic && _showGrid)
-                CustomPaint(
-                  size: const ui.Size(double.infinity, double.infinity),
-                  painter: GridPainter(),
-                ),
-              if (_viewMode == ViewMode.schematic && _showNets)
-                CustomPaint(
-                  size: const ui.Size(double.infinity, double.infinity),
-                  painter: WirePainter(
-                    project: widget.project!,
-                    selectedNet: _selectedNet,
-                  ),
-                ),
-              if (_viewMode == ViewMode.schematic)
-                CustomPaint(
-                  size: const ui.Size(double.infinity, double.infinity),
-                  painter: SchematicPainter(
-                    project: widget.project!,
-                    draggingComponent: widget.draggingComponent,
-                    mousePosition: _mousePosition,
-                  ),
-                ),
-              if (_viewMode == ViewMode.image &&
-                  widget.project!.pcbImages.isNotEmpty)
-                _buildImageLayer(),
-            ],
-          ),
-        ),
+            widget.onTap!(localPosition);
+          }
+        },
+        child: _buildImageLayer(),
       ),
     );
   }
 
   Widget _buildImageLayer() {
+    if (widget.project == null || widget.project!.pcbImages.isEmpty) {
+      return SizedBox.shrink();
+    }
     final imageView = widget.project!.pcbImages[widget.currentIndex];
     final mod = imageView.modification;
 
@@ -244,49 +154,17 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
     final c = mod.contrast + 1;
     if (mod.invertColors) {
       return [
-        -c,
-        0,
-        0,
-        0,
-        255,
-        0,
-        -c,
-        0,
-        0,
-        255,
-        0,
-        0,
-        -c,
-        0,
-        255,
-        0,
-        0,
-        0,
-        1,
-        0,
+        -c, 0, 0, 0, 255,
+        0, -c, 0, 0, 255,
+        0, 0, -c, 0, 255,
+        0, 0, 0, 1, 0,
       ];
     }
     return [
-      c,
-      0,
-      0,
-      0,
-      b * 255,
-      0,
-      c,
-      0,
-      0,
-      b * 255,
-      0,
-      0,
-      c,
-      0,
-      b * 255,
-      0,
-      0,
-      0,
-      1,
-      0,
+      c, 0, 0, 0, b * 255,
+      0, c, 0, 0, b * 255,
+      0, 0, c, 0, b * 255,
+      0, 0, 0, 1, 0,
     ];
   }
 
@@ -297,8 +175,6 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
       padding: EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
-          if (_selectedSymbol != null)
-            Text('Selected: ${_selectedSymbol!.logicalComponentId}'),
           Spacer(),
           Text(
             'Zoom: ${(_transformController.value.getMaxScaleOnAxis() * 100).toStringAsFixed(0)}%',
@@ -447,5 +323,3 @@ class _PCBViewerPanelState extends State<PCBViewerPanel>
     );
   }
 }
-
-enum ViewMode { image, schematic }

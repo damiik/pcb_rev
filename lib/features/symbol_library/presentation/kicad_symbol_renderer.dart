@@ -6,14 +6,10 @@ import '../data/kicad_symbol_loader.dart';
 
 /// Renderer for KiCad symbols on canvas
 class KiCadSymbolRenderer {
-  final KiCadSymbolLoader _loader;
-
-  KiCadSymbolRenderer(this._loader);
-
   /// Render a KiCad symbol on the canvas
-  Future<void> renderSymbol(
+  void renderSymbol(
     ui.Canvas canvas,
-    String symbolName,
+    Symbol symbol,
     Offset position,
     Paint paint,
     Paint fillPaint, {
@@ -21,9 +17,7 @@ class KiCadSymbolRenderer {
     double rotation = 0,
     String? componentId,
     String? componentValue,
-  }) async {
-    final symbol = await _loader.loadSymbol(symbolName);
-
+  }) {
     // Save canvas state
     canvas.save();
 
@@ -230,12 +224,11 @@ class KiCadSymbolRenderer {
   }
 
   /// Get connection points for a symbol (used for wire routing)
-  Future<List<Offset>> getConnectionPoints(
-    String symbolName,
+  List<Offset> getConnectionPoints(
+    Symbol symbol,
     Offset position,
     double rotation,
-  ) async {
-    final symbol = await _loader.loadSymbol(symbolName);
+  ) {
     final connectionPoints = <Offset>[];
 
     for (final unit in symbol.units) {
@@ -263,9 +256,7 @@ class KiCadSymbolRenderer {
   }
 
   /// Get the bounding box of a symbol
-  Future<Rect> getSymbolBounds(String symbolName) async {
-    final symbol = await _loader.loadSymbol(symbolName);
-
+  Rect getSymbolBounds(Symbol symbol) {
     double minX = double.infinity, maxX = double.negativeInfinity;
     double minY = double.infinity, maxY = double.negativeInfinity;
 

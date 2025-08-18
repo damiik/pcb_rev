@@ -44,7 +44,7 @@ typedef Project = ({
   Map<String, LogicalComponent> logicalComponents,
   Map<String, LogicalNet> logicalNets,
   // Visual Models (Views)
-  SchematicView schematic,
+  String? schematicFilePath, // Path to the KiCad schematic file
   List<PCBImageView> pcbImages,
 });
 
@@ -56,7 +56,7 @@ Map<String, dynamic> projectToJson(Project p) => {
     (k, v) => MapEntry(k, logicalComponentToJson(v)),
   ),
   'logicalNets': p.logicalNets.map((k, v) => MapEntry(k, logicalNetToJson(v))),
-  'schematic': schematicViewToJson(p.schematic),
+  'schematicFilePath': p.schematicFilePath,
   'pcbImages': p.pcbImages.map((v) => pcbImageViewToJson(v)).toList(),
 };
 
@@ -70,7 +70,7 @@ Project projectFromJson(Map<String, dynamic> json) => (
   logicalNets: (json['logicalNets'] as Map<String, dynamic>).map(
     (k, v) => MapEntry(k, logicalNetFromJson(v as Map<String, dynamic>)),
   ),
-  schematic: schematicViewFromJson(json['schematic'] as Map<String, dynamic>),
+  schematicFilePath: json['schematicFilePath'] as String?,
   pcbImages: (json['pcbImages'] as List<dynamic>)
       .map((v) => pcbImageViewFromJson(v as Map<String, dynamic>))
       .toList(),
@@ -100,7 +100,7 @@ extension ProjectCopyWith on Project {
     DateTime? lastUpdated,
     Map<String, LogicalComponent>? logicalComponents,
     Map<String, LogicalNet>? logicalNets,
-    SchematicView? schematic,
+    String? schematicFilePath,
     List<PCBImageView>? pcbImages,
   }) {
     return (
@@ -109,7 +109,7 @@ extension ProjectCopyWith on Project {
       lastUpdated: lastUpdated ?? this.lastUpdated,
       logicalComponents: logicalComponents ?? this.logicalComponents,
       logicalNets: logicalNets ?? this.logicalNets,
-      schematic: schematic ?? this.schematic,
+      schematicFilePath: schematicFilePath ?? this.schematicFilePath,
       pcbImages: pcbImages ?? this.pcbImages,
     );
   }
