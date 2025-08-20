@@ -23,6 +23,7 @@ final class Symbol extends KiCadElement {
   final String name;
   final PinNames pinNames;
   final bool inBom;
+  final bool hidePinNumbers;
   final bool onBoard;
   final List<Property> properties;
   final List<SymbolUnit> units;
@@ -31,6 +32,7 @@ final class Symbol extends KiCadElement {
     required this.name,
     required this.pinNames,
     required this.inBom,
+    required this.hidePinNumbers,
     required this.onBoard,
     required this.properties,
     required this.units,
@@ -99,6 +101,28 @@ final class Rectangle extends GraphicElement {
     required this.stroke,
     required this.fill,
   });
+}
+
+final class Circle extends GraphicElement {
+  final Position center;
+  final double radius;
+  final Stroke stroke;
+  final Fill fill;
+
+  Circle({
+    required this.center,
+    required this.radius,
+    required this.stroke,
+    required this.fill,
+  });
+}
+
+final class Polyline extends GraphicElement {
+  final List<Position> points;
+  final Stroke stroke;
+  final Fill fill;
+
+  Polyline({required this.points, required this.stroke, required this.fill});
 }
 
 final class Pin extends KiCadElement {

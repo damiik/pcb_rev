@@ -72,7 +72,8 @@ final class KiCadParser {
             ...final rest,
           ],
         ):
-          symbols.add(parseSymbol(name, rest));
+          var symbol = parseSymbol(name, rest);
+          symbols.add(symbol);
         default:
           break;
       }
@@ -89,6 +90,7 @@ final class KiCadParser {
     var pinNames = const PinNames(offset: 1.016);
     var inBom = true;
     var onBoard = true;
+    var hidePinNumbers = false;
     final properties = <Property>[];
     final units = <SymbolUnit>[];
 
@@ -104,16 +106,29 @@ final class KiCadParser {
           ],
         ):
           pinNames = PinNames(offset: double.parse(v));
+
+        case SList(
+          elements: [
+            SAtom(value: 'pin_numbers'),
+            SList(elements: [SAtom(value: 'hide'), SAtom(value: final v)]),
+            ...,
+          ],
+        ):
+          hidePinNumbers = v == 'yes';
+
         case SList(
           elements: [SAtom(value: 'in_bom'), SAtom(value: final v), ...],
         ):
           inBom = v == 'yes';
+
         case SList(
           elements: [SAtom(value: 'on_board'), SAtom(value: final v), ...],
         ):
           onBoard = v == 'yes';
+
         case SList(elements: [SAtom(value: 'property'), ...final propElements]):
           properties.add(parseProperty(propElements));
+
         case SList(
           elements: [
             SAtom(value: 'symbol'),
@@ -122,6 +137,7 @@ final class KiCadParser {
           ],
         ):
           units.add(parseSymbolUnit(unitName, unitElements));
+
         default:
           break;
       }
@@ -131,6 +147,7 @@ final class KiCadParser {
       name: name,
       pinNames: pinNames,
       inBom: inBom,
+      hidePinNumbers: hidePinNumbers,
       onBoard: onBoard,
       properties: properties,
       units: units,
@@ -203,8 +220,18 @@ final class KiCadParser {
           elements: [SAtom(value: 'rectangle'), ...final rectElements],
         ):
           graphics.add(parseRectangle(rectElements));
+
+        case SList(elements: [SAtom(value: 'circle'), ...final circleElements]):
+          graphics.add(parseCircle(circleElements));
+
+        case SList(
+          elements: [SAtom(value: 'polyline'), ...final polylineElements],
+        ):
+          graphics.add(parsePolyline(polylineElements));
+
         case SList(elements: [SAtom(value: 'pin'), ...final pinElements]):
           pins.add(parsePin(pinElements));
+
         default:
           break;
       }
@@ -233,7 +260,7 @@ final class KiCadParser {
             ...,
           ],
         ):
-          start = Position(double.parse(x), double.parse(y));
+          start = Position(double.parse(x), double.parse(y) * -1.0);
         case SList(
           elements: [
             SAtom(value: 'end'),
@@ -242,7 +269,7 @@ final class KiCadParser {
             ...,
           ],
         ):
-          end = Position(double.parse(x), double.parse(y));
+          end = Position(double.parse(x), double.parse(y) * -1.0);
         case SList(
           elements: [
             SAtom(value: 'stroke'),
@@ -272,6 +299,110 @@ final class KiCadParser {
       stroke: stroke,
       fill: fill,
     );
+  }
+
+  static Circle parseCircle(List<SExpr> elements) {
+    Position? center;
+    double radius = 0;
+    var stroke = const Stroke(width: 0.254);
+    var fill = const Fill(type: FillType.none);
+
+    for (final element in elements) {
+      switch (element) {
+        case SList(
+          elements: [
+            SAtom(value: 'center'),
+            SAtom(value: final x),
+            SAtom(value: final y),
+            ...,
+          ],
+        ):
+          center = Position(double.parse(x), double.parse(y) * -1.0);
+
+        case SList(
+          elements: [SAtom(value: 'radius'), SAtom(value: final r), ...],
+        ):
+          radius = double.parse(r);
+
+        case SList(
+          elements: [
+            SAtom(value: 'stroke'),
+            SList(
+              elements: [SAtom(value: 'width'), SAtom(value: final w), ...],
+            ),
+            ...,
+          ],
+        ):
+          stroke = Stroke(width: double.parse(w));
+
+        case SList(
+          elements: [
+            SAtom(value: 'fill'),
+            SList(elements: [SAtom(value: 'type'), SAtom(value: final t), ...]),
+            ...,
+          ],
+        ):
+          fill = Fill(type: parseFillType(t));
+        default:
+          break;
+      }
+    }
+
+    return Circle(
+      center: center ?? const Position(0, 0),
+      radius: radius,
+      stroke: stroke,
+      fill: fill,
+    );
+  }
+
+  static Polyline parsePolyline(List<SExpr> elements) {
+    final points = <Position>[];
+    var stroke = const Stroke(width: 0.254);
+    var fill = const Fill(type: FillType.none);
+
+    // print('Parsing polyline with elements: $elements');
+
+    for (final element in elements) {
+      switch (element) {
+        case SList(elements: [SAtom(value: 'pts'), ...final pointElements]):
+          for (final point in pointElements) {
+            if (point case SList(
+              elements: [
+                SAtom(value: 'xy'),
+                SAtom(value: final x),
+                SAtom(value: final y),
+              ],
+            )) {
+              points.add(Position(double.parse(x), double.parse(y) * -1.0));
+            }
+          }
+
+        case SList(
+          elements: [
+            SAtom(value: 'stroke'),
+            SList(
+              elements: [SAtom(value: 'width'), SAtom(value: final w), ...],
+            ),
+            ...,
+          ],
+        ):
+          stroke = Stroke(width: double.parse(w));
+
+        case SList(
+          elements: [
+            SAtom(value: 'fill'),
+            SList(elements: [SAtom(value: 'type'), SAtom(value: final t), ...]),
+            ...,
+          ],
+        ):
+          fill = Fill(type: parseFillType(t));
+        default:
+          break;
+      }
+    }
+
+    return Polyline(points: points, stroke: stroke, fill: fill);
   }
 
   static Pin parsePin(List<SExpr> elements) {
@@ -309,11 +440,23 @@ final class KiCadParser {
             ...,
           ],
         ):
-          position = Position(
-            double.parse(x),
-            double.parse(y),
-            double.parse(angle),
-          );
+          {
+            var xv = double.parse(x);
+            var yv = double.parse(y);
+            var av = double.parse(angle);
+
+            // Mirror angle by X-axis and normalize to positive range
+            var normalizedAngle = (av * -1.0) % 360.0;
+            if (normalizedAngle < 0) {
+              normalizedAngle += 360.0;
+            }
+
+            position = Position(
+              xv,
+              yv * -1.0, // KiCad uses inverted Y axis
+              normalizedAngle,
+            );
+          }
         case SList(
           elements: [SAtom(value: 'length'), SAtom(value: final l), ...],
         ):

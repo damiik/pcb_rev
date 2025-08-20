@@ -1,9 +1,14 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../data/kicad_schematic_models.dart';
-import '../data/kicad_symbol_loader.dart';
 import '../data/kicad_symbol_models.dart';
 import 'kicad_symbol_renderer.dart';
+
+const double kicadUnitToPx = 2.5; // albo dynamicznie dobrane
+const double kicadStrokeWidth = 0.2;
+const double kicadJunctionSize = 0.5;
+const ui.Color kicadWireColor = ui.Color(0xFF87BB4C);
+const ui.Color kicadSymbolColor = ui.Color(0xFFE08A62);
 
 /// Renderer for a full KiCad schematic.
 class KiCadSchematicRenderer {
@@ -12,15 +17,13 @@ class KiCadSchematicRenderer {
   KiCadSchematicRenderer(this._symbolCache);
 
   /// Renders the entire schematic onto a canvas.
-  void render(
-    ui.Canvas canvas,
-    ui.Size size,
-    KiCadSchematic schematic,
-  ) {
+  void render(ui.Canvas canvas, ui.Size size, KiCadSchematic schematic) {
     // Create a renderer on-the-fly for the schematic's embedded library
     final symbolRenderer = KiCadSymbolRenderer();
 
     // TODO: Add zoom and pan transformation
+
+    canvas.scale(kicadUnitToPx);
 
     _drawWires(canvas, schematic.wires);
     _drawJunctions(canvas, schematic.junctions);
@@ -29,8 +32,9 @@ class KiCadSchematicRenderer {
 
   void _drawWires(ui.Canvas canvas, List<Wire> wires) {
     final paint = Paint()
-      ..color = Colors.blueAccent
-      ..strokeWidth = 1.0;
+      ..color = kicadWireColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = kicadStrokeWidth * 0.5; // Adjusted for better visibility
 
     for (final wire in wires) {
       if (wire.pts.length < 2) continue;
@@ -39,17 +43,27 @@ class KiCadSchematicRenderer {
       for (var i = 1; i < wire.pts.length; i++) {
         path.lineTo(wire.pts[i].x, wire.pts[i].y);
       }
-      canvas.drawPath(path, paint);
+      canvas.drawPath(
+        path,
+        paint
+          ..strokeWidth = wire.stroke.width > 0
+              ? wire.stroke.width
+              : kicadStrokeWidth,
+      );
     }
   }
 
   void _drawJunctions(ui.Canvas canvas, List<Junction> junctions) {
     final paint = Paint()
-      ..color = Colors.blueAccent
+      ..color = kicadWireColor
       ..style = PaintingStyle.fill;
 
     for (final junction in junctions) {
-      canvas.drawCircle(Offset(junction.at.x, junction.at.y), 2.0, paint);
+      canvas.drawCircle(
+        Offset(junction.at.x, junction.at.y),
+        kicadJunctionSize,
+        paint,
+      );
     }
   }
 
@@ -59,12 +73,12 @@ class KiCadSchematicRenderer {
     KiCadSymbolRenderer symbolRenderer,
   ) {
     final paint = Paint()
-      ..color = Colors.white
+      ..color = kicadSymbolColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+      ..strokeWidth = kicadStrokeWidth;
 
     final fillPaint = Paint()
-      ..color = Colors.grey[900]!
+      ..color = kicadSymbolColor
       ..style = PaintingStyle.fill;
 
     for (final symbolInstance in symbols) {
@@ -108,12 +122,9 @@ class KiCadSchematicRenderer {
       symbolRenderer.renderSymbol(
         canvas,
         symbol,
-        Offset(symbolInstance.at.x, symbolInstance.at.y),
+        symbolInstance,
         paint,
         fillPaint,
-        rotation: symbolInstance.at.angle,
-        componentId: ref,
-        componentValue: value,
       );
     }
   }
