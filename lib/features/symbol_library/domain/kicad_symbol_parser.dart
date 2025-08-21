@@ -260,7 +260,7 @@ final class KiCadParser {
             ...,
           ],
         ):
-          start = Position(double.parse(x), double.parse(y) * -1.0);
+          start = Position(double.parse(x), double.parse(y));
         case SList(
           elements: [
             SAtom(value: 'end'),
@@ -269,7 +269,7 @@ final class KiCadParser {
             ...,
           ],
         ):
-          end = Position(double.parse(x), double.parse(y) * -1.0);
+          end = Position(double.parse(x), double.parse(y));
         case SList(
           elements: [
             SAtom(value: 'stroke'),
@@ -317,7 +317,7 @@ final class KiCadParser {
             ...,
           ],
         ):
-          center = Position(double.parse(x), double.parse(y) * -1.0);
+          center = Position(double.parse(x), double.parse(y));
 
         case SList(
           elements: [SAtom(value: 'radius'), SAtom(value: final r), ...],
@@ -374,7 +374,7 @@ final class KiCadParser {
                 SAtom(value: final y),
               ],
             )) {
-              points.add(Position(double.parse(x), double.parse(y) * -1.0));
+              points.add(Position(double.parse(x), double.parse(y)));
             }
           }
 
@@ -445,16 +445,10 @@ final class KiCadParser {
             var yv = double.parse(y);
             var av = double.parse(angle);
 
-            // Mirror angle by X-axis and normalize to positive range
-            var normalizedAngle = (av * -1.0) % 360.0;
-            if (normalizedAngle < 0) {
-              normalizedAngle += 360.0;
-            }
-
             position = Position(
               xv,
-              yv * -1.0, // KiCad uses inverted Y axis
-              normalizedAngle,
+              yv, // KiCad uses inverted Y axis
+              av,
             );
           }
         case SList(

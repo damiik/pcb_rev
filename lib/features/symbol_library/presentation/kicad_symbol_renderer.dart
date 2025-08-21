@@ -25,10 +25,12 @@ class KiCadSymbolRenderer {
     canvas.translate(position.dx, position.dy);
 
     // flip osi Y lokalnie dla symbolu
-    // canvas.scale(1, -1);
     if (rotation != 0) {
-      canvas.rotate(rotation * math.pi / 180);
+      canvas.rotate(
+        -rotation * math.pi / 180,
+      ); // KiCad uses inverted Y axis (Y values grow upwards)
     }
+    canvas.scale(1, -1);
 
     // Draw symbol units
     for (final unit in symbol.units) {
@@ -170,13 +172,17 @@ class KiCadSymbolRenderer {
     canvas.drawLine(startPos, endPos, paint);
 
     // Draw pin number and name
-    if (showPinNumbers) {
-      _drawPinText(canvas, pin, position, paint);
-    }
+    _drawPinText(canvas, pin, position, paint, showPinNumbers);
   }
 
   /// Draw pin number and name text
-  void _drawPinText(ui.Canvas canvas, Pin pin, Offset position, Paint paint) {
+  void _drawPinText(
+    ui.Canvas canvas,
+    Pin pin,
+    Offset position,
+    Paint paint,
+    bool showPinNumbers,
+  ) {
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     // Draw pin number
@@ -190,60 +196,95 @@ class KiCadSymbolRenderer {
     var numberOffset = Offset.zero;
     var nameOffset = Offset.zero;
     var angleRad = 0.0;
-    final distance = 3.0; // Distance from pin end
+    var distance = 0.2; // Distance from pin end
 
-    if (pin.angle >= 315 || pin.angle < 45) {
-      // Left side
-      numberOffset = Offset(
-        pin.position.x,
-        pin.position.y - textPainter.height - 0.2,
-      );
-      nameOffset = Offset(3, textPainter.height / 2);
-    } else if (pin.angle >= 45 && pin.angle < 135) {
-      // Top side
-      numberOffset = Offset(
-        pin.position.x + textPainter.height + 0.2,
-        pin.position.y,
-      );
-      nameOffset = Offset(pin.length + 0.5, textPainter.height / 2);
-      angleRad = 90.0 * math.pi / 180.0;
-    } else if (pin.angle >= 135 && pin.angle < 225) {
-      // Right side
-      numberOffset = Offset(
-        pin.position.x - pin.length,
-        pin.position.y - textPainter.height - 0.2,
-      );
-      nameOffset = Offset(-pin.length - 4, textPainter.height / 2);
-    } else {
-      // Bottom side
-      numberOffset = Offset(
-        pin.position.x + textPainter.height + 0.2,
-        pin.position.y - pin.length,
-      );
-      nameOffset = Offset(-8, textPainter.height / 2);
-      angleRad = 90.0 * math.pi / 180.0;
+    if (showPinNumbers) {
+      if (pin.angle >= 315 || pin.angle < 45) {
+        // Left side
+        numberOffset = Offset(pin.position.x, pin.position.y + 0.2);
+      } else if (pin.angle >= 45 && pin.angle < 135) {
+        // Bottom side
+        numberOffset = Offset(pin.position.x - 0.2, pin.position.y);
+        angleRad = 90.0 * math.pi / 180.0;
+      } else if (pin.angle >= 135 && pin.angle < 225) {
+        // Right side
+        numberOffset = Offset(
+          pin.position.x - pin.length + 0.2,
+          pin.position.y + 0.2,
+        );
+      } else {
+        // Top side
+        numberOffset = Offset(
+          pin.position.x - 0.2,
+          pin.position.y - pin.length + 0.2,
+        );
+        angleRad = 90.0 * math.pi / 180.0;
+      }
+
+      canvas.save();
+      canvas.translate(numberOffset.dx, numberOffset.dy);
+      canvas.rotate(angleRad);
+      canvas.scale(
+        1,
+        -1,
+      ); // KiCad uses inverted Y axis in symbol definition (Y values grow upwards)
+
+      textPainter.paint(canvas, Offset(0, -textPainter.height));
+      canvas.restore();
     }
 
-    canvas.save();
-    canvas.translate(numberOffset.dx, numberOffset.dy);
-    canvas.rotate(angleRad);
-
-    textPainter.paint(canvas, Offset.zero);
-
     // Draw pin name (if different from number)
-    if (pin.name != pin.number && pin.name.isNotEmpty) {
+    if (pin.name != pin.number && pin.name.isNotEmpty && pin.name != '~') {
       textPainter.text = TextSpan(
         text: pin.name,
         style: TextStyle(
           color: Colors.yellow,
-          fontSize: 2,
+          fontSize: 1.5,
           fontWeight: FontWeight.bold,
         ),
       );
       textPainter.layout();
-      textPainter.paint(canvas, nameOffset);
+      if (!showPinNumbers) distance = -1.5;
+
+      if (pin.angle >= 315 || pin.angle < 45) {
+        // Left side
+        nameOffset = Offset(
+          pin.position.x + pin.length + distance,
+          pin.position.y - textPainter.height,
+        );
+      } else if (pin.angle >= 45 && pin.angle < 135) {
+        // Bottom side
+        nameOffset = Offset(
+          pin.position.x + textPainter.height,
+          pin.position.y + pin.length + distance,
+        );
+        angleRad = 90.0 * math.pi / 180.0;
+      } else if (pin.angle >= 135 && pin.angle < 225) {
+        // Right side
+        nameOffset = Offset(
+          pin.position.x - pin.length - textPainter.width - distance,
+          pin.position.y - textPainter.height,
+        );
+      } else {
+        // Top side
+        nameOffset = Offset(
+          pin.position.x + textPainter.height,
+          pin.position.y - pin.length - textPainter.width - distance,
+        );
+        angleRad = 90.0 * math.pi / 180.0;
+      }
+
+      canvas.save();
+      canvas.translate(nameOffset.dx, nameOffset.dy);
+      canvas.rotate(angleRad);
+      canvas.scale(
+        1,
+        -1,
+      ); // KiCad uses inverted Y axis in symbol definition (Y values grow upwards)
+
+      textPainter.paint(canvas, Offset(0, -textPainter.height));
+      canvas.restore();
     }
-    canvas.restore();
   }
 
   /// Draw component ID and value
