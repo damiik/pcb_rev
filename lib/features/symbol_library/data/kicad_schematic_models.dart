@@ -30,6 +30,8 @@ final class SymbolInstance {
   final bool inBom;
   final bool onBoard;
   final bool dnp;
+  final bool mirrorx;
+  final bool mirrory;
 
   SymbolInstance({
     required this.libId,
@@ -40,6 +42,8 @@ final class SymbolInstance {
     required this.inBom,
     required this.onBoard,
     required this.dnp,
+    this.mirrorx = false,
+    this.mirrory = false,
   });
 }
 

@@ -111,6 +111,8 @@ final class KiCadSchematicParser {
     bool inBom = true;
     bool onBoard = true;
     bool dnp = false;
+    bool mirrorx = false;
+    bool mirrory = false;
 
     for (final element in elements) {
       switch (element) {
@@ -148,6 +150,10 @@ final class KiCadSchematicParser {
           onBoard = v == 'yes';
         case SList(elements: [SAtom(value: 'dnp'), SAtom(value: final v), ...]):
           dnp = v == 'yes';
+        case SList(elements: [SAtom(value: 'mirror'), SAtom(value: 'x'), ...]):
+          mirrorx = true;
+        case SList(elements: [SAtom(value: 'mirror'), SAtom(value: 'y'), ...]):
+          mirrory = true;
         default:
           break;
       }
@@ -163,6 +169,8 @@ final class KiCadSchematicParser {
       inBom: inBom,
       onBoard: onBoard,
       dnp: dnp,
+      mirrorx: mirrorx,
+      mirrory: mirrory,
     );
   }
 

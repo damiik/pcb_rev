@@ -52,6 +52,7 @@ class KiCadSymbolLoader {
 
     // Cache all symbols
     for (final symbol in library.symbols) {
+      print('Default symbol library - Caching symbol: ${symbol.name}');
       _symbolCache[symbol.name] = symbol;
     }
 

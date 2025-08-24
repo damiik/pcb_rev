@@ -18,78 +18,83 @@ class KiCadSymbolRenderer {
     // Save canvas state
     canvas.save();
 
-    // Apply transformations
+    // Apply transformations for the symbol graphics
     final position = Offset(symbolInstance.at.x, symbolInstance.at.y);
     final rotation = symbolInstance.at.angle;
+    final mirrorX = symbolInstance.mirrorx;
+    final mirrorY = symbolInstance.mirrory;
 
     canvas.translate(position.dx, position.dy);
 
-    // flip osi Y lokalnie dla symbolu
+    // KiCad uses inverted Y axis for symbols, so we apply this locally.
     if (rotation != 0) {
-      canvas.rotate(
-        -rotation * math.pi / 180,
-      ); // KiCad uses inverted Y axis (Y values grow upwards)
+      canvas.rotate(-rotation * math.pi / 180);
     }
     canvas.scale(1, -1);
 
-    // Draw symbol units
+    // Draw symbol units, passing mirror flags
     for (final unit in symbol.units) {
       _drawSymbolUnit(
         canvas,
         unit,
-        position,
         paint,
         fillPaint,
         isSelected,
         !symbol.hidePinNumbers,
+        mirrorX,
+        mirrorY,
       );
     }
-    // Restore canvas state
+    // Restore canvas state to draw text properties in the correct space
     canvas.restore();
-    // Draw component info
 
-    _drawComponentInfo(canvas, symbolInstance, paint);
+    // --- Draw Text Properties (Reference, Value) ---
+    // Text is drawn outside the symbol's scaled/rotated canvas to avoid distortion.
+    canvas.save();
+    // canvas.translate(position.dx, position.dy);
+    // if (rotation != 0) {
+    //   canvas.rotate(-rotation * math.pi / 180);
+    // }
+    // We don't use canvas.scale(1, -1) here, so Y is downwards.
+    _drawComponentInfo(canvas, symbolInstance, paint, mirrorX, mirrorY);
+    canvas.restore();
   }
 
   /// Draw a symbol unit (graphics and pins)
   void _drawSymbolUnit(
     ui.Canvas canvas,
     SymbolUnit unit,
-    Offset position,
     Paint paint,
     Paint fillPaint,
     bool isSelected,
     bool showPinNumbers,
+    bool mirrorX,
+    bool mirrorY,
   ) {
+    final mx = mirrorY ? -1.0 : 1.0;
+    final my = mirrorX ? -1.0 : 1.0;
+
     // Draw graphics (rectangles, etc.)
     for (final graphic in unit.graphics) {
       switch (graphic.runtimeType) {
         case Rectangle:
-          // Draw rectangle graphic
           _drawRectangle(
             canvas,
             graphic as Rectangle,
-            position,
             paint,
             fillPaint,
             isSelected,
+            mx,
+            my,
           );
           break;
 
         case Circle:
-          // Draw circle graphic
           final circle = graphic as Circle;
-          canvas.drawCircle(
-            Offset(circle.center.x, circle.center.y),
-            circle.radius,
-            paint,
-          );
+          final center = Offset(circle.center.x * mx, circle.center.y * my);
+          canvas.drawCircle(center, circle.radius, paint);
           if (circle.fill.type != FillType.none) {
-            canvas.drawCircle(
-              Offset(circle.center.x, circle.center.y),
-              circle.radius,
-              fillPaint,
-            );
+            canvas.drawCircle(center, circle.radius, fillPaint);
           }
           break;
 
@@ -97,9 +102,10 @@ class KiCadSymbolRenderer {
           final polyline = graphic as Polyline;
           final path = ui.Path();
           if (polyline.points.isNotEmpty) {
-            path.moveTo(polyline.points.first.x, polyline.points.first.y);
+            final firstPoint = polyline.points.first;
+            path.moveTo(firstPoint.x * mx, firstPoint.y * my);
             for (final point in polyline.points.skip(1)) {
-              path.lineTo(point.x, point.y);
+              path.lineTo(point.x * mx, point.y * my);
             }
           }
           canvas.drawPath(path, paint);
@@ -107,233 +113,312 @@ class KiCadSymbolRenderer {
             canvas.drawPath(path, fillPaint);
           }
           break;
-
-        // Add other graphic types as needed
       }
     }
 
     // Draw pins
     for (final pin in unit.pins) {
-      _drawPin(canvas, pin, position, paint, showPinNumbers);
+      _drawPin(canvas, pin, paint, showPinNumbers, mirrorX, mirrorY, mx, my);
     }
   }
 
-  /// Draw a rectangle graphic element
+  /// Draw a rectangle graphic element, applying mirroring.
   void _drawRectangle(
     ui.Canvas canvas,
     Rectangle rectangle,
-    Offset position,
     Paint paint,
     Paint fillPaint,
     bool isSelected,
+    double mx,
+    double my,
   ) {
-    final rect = Rect.fromPoints(
-      Offset(rectangle.start.x, rectangle.start.y),
-      Offset(rectangle.end.x, rectangle.end.y),
+    // Ensure start is top-left and end is bottom-right after mirroring
+    final x1 = rectangle.start.x * mx;
+    final y1 = rectangle.start.y * my;
+    final x2 = rectangle.end.x * mx;
+    final y2 = rectangle.end.y * my;
+
+    final rect = Rect.fromLTRB(
+      math.min(x1, x2),
+      math.min(y1, y2),
+      math.max(x1, x2),
+      math.max(y1, y2),
     );
 
-    // Update colors based on selection
-    Paint rectPaint;
-    Paint rectFillPaint;
-    if (isSelected) {
-      rectPaint = paint..color = Colors.blue;
-      rectFillPaint = fillPaint..color = Colors.blue.withOpacity(0.3);
-    } else {
-      rectPaint = paint;
-      rectFillPaint = fillPaint;
-    }
+    Paint rectPaint = isSelected ? (paint..color = Colors.blue) : paint;
+    Paint rectFillPaint = isSelected
+        ? (fillPaint..color = Colors.blue.withOpacity(0.3))
+        : fillPaint;
 
-    // Draw filled rectangle if specified
-    if (rectangle.fill.type != FillType.none) {
-      if (rectangle.fill.type == FillType.background) {
-        canvas.drawRect(rect, rectFillPaint);
-      }
+    if (rectangle.fill.type == FillType.background) {
+      canvas.drawRect(rect, rectFillPaint);
     }
-
-    // Draw stroke
     canvas.drawRect(rect, rectPaint);
   }
 
-  /// Draw a pin
+  /// Draw a pin, applying mirroring.
   void _drawPin(
     ui.Canvas canvas,
     Pin pin,
-    Offset position,
     Paint paint,
     bool showPinNumbers,
+    bool mirrorX,
+    bool mirrorY,
+    double mx,
+    double my,
   ) {
-    final startPos = Offset(pin.position.x, pin.position.y);
-    final endPos = Offset(
-      pin.position.x + pin.length * math.cos(pin.angle * math.pi / 180),
-      pin.position.y + pin.length * math.sin(pin.angle * math.pi / 180),
-    );
+    final angle = pin.angle * (math.pi / 180);
+    final startPos = Offset(pin.position.x * mx, pin.position.y * my);
 
-    // Draw pin line
+    // To correctly mirror the pin, we calculate its original end point
+    // and then mirror those coordinates.
+    final endPosOriginal = Offset(
+      pin.position.x + pin.length * math.cos(angle),
+      pin.position.y + pin.length * math.sin(angle),
+    );
+    final endPos = Offset(endPosOriginal.dx * mx, endPosOriginal.dy * my);
+
     canvas.drawLine(startPos, endPos, paint);
 
-    // Draw pin number and name
-    _drawPinText(canvas, pin, position, paint, showPinNumbers);
+    // Draw pin number and name text, handling mirroring for position but not text.
+    _drawPinText(canvas, pin, paint, showPinNumbers, mirrorX, mirrorY, mx, my);
   }
 
-  /// Draw pin number and name text
+  /// Draw pin number and name text.
+  /// Text position is mirrored, but the text itself is not, to maintain readability.
   void _drawPinText(
     ui.Canvas canvas,
     Pin pin,
-    Offset position,
     Paint paint,
     bool showPinNumbers,
+    bool mirrorX,
+    bool mirrorY,
+    double mx,
+    double my,
   ) {
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
-    // Draw pin number
-    textPainter.text = TextSpan(
-      text: pin.number,
-      style: TextStyle(color: Colors.white70, fontSize: 2),
-    );
-    textPainter.layout();
-
-    // Position pin number based on pin angle
-    var numberOffset = Offset.zero;
-    var nameOffset = Offset.zero;
-    var angleRad = 0.0;
-    var distance = 0.2; // Distance from pin end
-
-    if (showPinNumbers) {
-      if (pin.angle >= 315 || pin.angle < 45) {
-        // Left side
-        numberOffset = Offset(pin.position.x, pin.position.y + 0.2);
-      } else if (pin.angle >= 45 && pin.angle < 135) {
-        // Bottom side
-        numberOffset = Offset(pin.position.x - 0.2, pin.position.y);
-        angleRad = 90.0 * math.pi / 180.0;
-      } else if (pin.angle >= 135 && pin.angle < 225) {
-        // Right side
-        numberOffset = Offset(
-          pin.position.x - pin.length + 0.2,
-          pin.position.y + 0.2,
-        );
-      } else {
-        // Top side
-        numberOffset = Offset(
-          pin.position.x - 0.2,
-          pin.position.y - pin.length + 0.2,
-        );
-        angleRad = 90.0 * math.pi / 180.0;
-      }
-
-      canvas.save();
-      canvas.translate(numberOffset.dx, numberOffset.dy);
-      canvas.rotate(angleRad);
-      canvas.scale(
-        1,
-        -1,
-      ); // KiCad uses inverted Y axis in symbol definition (Y values grow upwards)
-
-      textPainter.paint(canvas, Offset(0, -textPainter.height));
-      canvas.restore();
-    }
-
-    // Draw pin name (if different from number)
-    if (pin.name != pin.number && pin.name.isNotEmpty && pin.name != '~') {
+    // --- Draw Pin Number ---
+    if (showPinNumbers && pin.number.isNotEmpty) {
       textPainter.text = TextSpan(
-        text: pin.name,
+        text: pin.number,
         style: TextStyle(
-          color: Colors.yellow,
-          fontSize: 1.5,
-          fontWeight: FontWeight.bold,
+          color: Colors.white70,
+          fontSize: pin.numberEffects.font.height,
         ),
       );
       textPainter.layout();
-      if (!showPinNumbers) distance = -1.5;
 
-      if (pin.angle >= 315 || pin.angle < 45) {
-        // Left side
-        nameOffset = Offset(
-          pin.position.x + pin.length + distance,
-          pin.position.y - textPainter.height,
+      // Position pin number based on pin angle
+      var numberOffset = Offset.zero;
+      var nameOffset = Offset.zero;
+      var angleRad = 0.0;
+      var distance = 0.2; // Distance from pin end
+
+      if (showPinNumbers) {
+        if (pin.angle >= 315 || pin.angle < 45) {
+          // Left side
+          numberOffset = Offset(pin.position.x, pin.position.y + 0.2);
+        } else if (pin.angle >= 45 && pin.angle < 135) {
+          // Bottom side
+          numberOffset = Offset(pin.position.x - 0.2, pin.position.y);
+          angleRad = 90.0 * math.pi / 180.0;
+        } else if (pin.angle >= 135 && pin.angle < 225) {
+          // Right side
+          numberOffset = Offset(
+            pin.position.x - pin.length + 0.2,
+            pin.position.y + 0.2,
+          );
+        } else {
+          // Top side
+          numberOffset = Offset(
+            pin.position.x - 0.2,
+            pin.position.y - pin.length + 0.2,
+          );
+          angleRad = 90.0 * math.pi / 180.0;
+        }
+
+        canvas.save();
+        canvas.translate(
+          numberOffset.dx * (mirrorY ? -1 : 1),
+          numberOffset.dy * (mirrorX ? -1 : 1),
         );
-      } else if (pin.angle >= 45 && pin.angle < 135) {
-        // Bottom side
-        nameOffset = Offset(
-          pin.position.x + textPainter.height,
-          pin.position.y + pin.length + distance,
-        );
-        angleRad = 90.0 * math.pi / 180.0;
-      } else if (pin.angle >= 135 && pin.angle < 225) {
-        // Right side
-        nameOffset = Offset(
-          pin.position.x - pin.length - textPainter.width - distance,
-          pin.position.y - textPainter.height,
-        );
-      } else {
-        // Top side
-        nameOffset = Offset(
-          pin.position.x + textPainter.height,
-          pin.position.y - pin.length - textPainter.width - distance,
-        );
-        angleRad = 90.0 * math.pi / 180.0;
+        canvas.rotate(angleRad);
+        canvas.scale(
+          1,
+          -1,
+        ); // KiCad uses inverted Y axis in symbol definition (Y values grow upwards)
+        textPainter.paint(canvas, Offset(0, -textPainter.height));
+        canvas.restore();
       }
 
-      canvas.save();
-      canvas.translate(nameOffset.dx, nameOffset.dy);
-      canvas.rotate(angleRad);
-      canvas.scale(
-        1,
-        -1,
-      ); // KiCad uses inverted Y axis in symbol definition (Y values grow upwards)
+      // --- Draw Pin Name ---
+      if (pin.name.isNotEmpty && pin.name != '~') {
+        textPainter.text = TextSpan(
+          text: pin.name,
+          style: TextStyle(
+            color: Colors.yellow,
+            fontSize: pin.nameEffects.font.height,
+            fontWeight: FontWeight.bold,
+          ),
+        );
+        textPainter.layout();
+        if (!showPinNumbers) distance = -1.5;
 
-      textPainter.paint(canvas, Offset(0, -textPainter.height));
-      canvas.restore();
+        if (pin.angle >= 315 || pin.angle < 45) {
+          // Left side
+          nameOffset = Offset(
+            pin.position.x + pin.length + distance,
+            pin.position.y - textPainter.height,
+          );
+        } else if (pin.angle >= 45 && pin.angle < 135) {
+          // Bottom side
+          nameOffset = Offset(
+            pin.position.x + textPainter.height,
+            pin.position.y + pin.length + distance,
+          );
+          angleRad = 90.0 * math.pi / 180.0;
+        } else if (pin.angle >= 135 && pin.angle < 225) {
+          // Right side
+          nameOffset = Offset(
+            pin.position.x - pin.length - textPainter.width - distance,
+            pin.position.y - textPainter.height,
+          );
+        } else {
+          // Top side
+          nameOffset = Offset(
+            pin.position.x + textPainter.height,
+            pin.position.y - pin.length - textPainter.width - distance,
+          );
+          angleRad = 90.0 * math.pi / 180.0;
+        }
+
+        canvas.save();
+        canvas.translate(
+          nameOffset.dx * (mirrorY ? -1 : 1),
+          nameOffset.dy * (mirrorX ? -1 : 1),
+        );
+        canvas.rotate(angleRad);
+        canvas.scale(
+          1,
+          -1,
+        ); // KiCad uses inverted Y axis in symbol definition (Y values grow upwards)
+        textPainter.paint(canvas, Offset(0, -textPainter.height));
+        canvas.restore();
+      }
     }
   }
 
-  /// Draw component ID and value
+  Offset _calculatePinNumberOffset(Pin pin, Size textSize) {
+    final pos = pin.position;
+    final angle = pin.angle * (math.pi / 180);
+    // Position inside the symbol body, near the pin root
+    final distance = (pin.numberEffects.font.height / 2) + 0.25;
+    final dx =
+        pos.x +
+        distance * math.cos(angle + math.pi); // Move opposite to pin direction
+    final dy = pos.y + distance * math.sin(angle + math.pi);
+    return Offset(dx, dy);
+  }
+
+  Offset _calculatePinNameOffset(Pin pin, Size textSize) {
+    final pos = pin.position;
+    final angle = pin.angle * (math.pi / 180);
+    final length = pin.length;
+    // Position outside the symbol body, near the pin tip
+    final distance = length + (pin.nameEffects.font.height / 2) + 0.25;
+    final dx = pos.x + distance * math.cos(angle);
+    final dy = pos.y + distance * math.sin(angle);
+    return Offset(dx, dy);
+  }
+
+  /// Draw component ID and value.
+  /// This is drawn in a separate canvas context, so transformations are simpler.
   void _drawComponentInfo(
     ui.Canvas canvas,
     SymbolInstance symbol,
-
     Paint paint,
+    bool mirrorX,
+    bool mirrorY,
   ) {
     for (final property in symbol.properties) {
-      if (property.name != 'Value' && property.name != 'Reference') {
-        continue; // Skip not Reference and Value properties
+      if ((property.name != 'Value' && property.name != 'Reference') ||
+          property.value.isEmpty ||
+          property.hidden) {
+        continue;
       }
-      // Draw each property below the symbol
+
+      final effects = property.effects;
       final propertyPainter = TextPainter(
         text: TextSpan(
           text: property.value,
-          style: TextStyle(color: Colors.white70, fontSize: 2),
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: effects.font.height,
+          ),
         ),
         textDirection: TextDirection.ltr,
         textAlign: TextAlign.left,
       );
-
       propertyPainter.layout();
-      propertyPainter.paint(
-        canvas,
-        Offset(property.position.x, property.position.y),
-      );
+
+      // Mirror the text's position, but not the text itself.
+      // The Y coordinate is negated because this canvas context has Y pointing down,
+      // opposite to the symbol's internal coordinate system.
+      var x = property.position.x;
+      var y = property.position.y;
+
+      // if (mirrorY) x = -x; // Mirror around Y-axis affects X coord
+      // if (mirrorX) y = -y; // Mirror around X-axis affects Y coord
+      propertyPainter.paint(canvas, Offset(x, y));
+
+      //   final angle = -property.position.angle; // KiCad angle is opposite
+
+      //   canvas.save();
+      //   canvas.translate(x, y);
+      //   if (angle != 0) {
+      //     canvas.rotate(angle * math.pi / 180);
+      //   }
+
+      //   final justificationOffset = _getJustificationOffset(
+      //     propertyPainter.size,
+      //     effects.justify,
+      //   );
+      //   propertyPainter.paint(canvas, justificationOffset);
+      //   canvas.restore();
+    }
+  }
+
+  TextAlign _getFlutterTextAlign(Justify justify) {
+    if (justify.toString().contains('left')) return TextAlign.left;
+    if (justify.toString().contains('right')) return TextAlign.right;
+    return TextAlign.center;
+  }
+
+  Offset _getJustificationOffset(Size size, Justify justify) {
+    double dx = 0;
+    double dy = 0;
+
+    // Horizontal alignment
+    if (justify.toString().contains('left')) {
+      dx = 0;
+    } else if (justify.toString().contains('right')) {
+      dx = -size.width;
+    } else {
+      // Center
+      dx = -size.width / 2;
     }
 
-    // // Position below the symbol
-    // // Find the bounding box of all units to determine symbol size
-    // double minX = double.infinity, maxX = double.negativeInfinity;
-    // double minY = double.infinity, maxY = double.negativeInfinity;
-
-    // for (final unit in symbol.units) {
-    //   for (final graphic in unit.graphics) {
-    //     if (graphic is Rectangle) {
-    //       minX = math.min(minX, graphic.start.x);
-    //       maxX = math.max(maxX, graphic.end.x);
-    //       minY = math.min(minY, graphic.start.y);
-    //       maxY = math.max(maxY, graphic.end.y);
-    //     }
-    //   }
-    // }
-
-    // final symbolHeight = maxY - minY;
-    // final textOffset = Offset(-textPainter.width / 2, symbolHeight / 2 + 10);
-    // textPainter.paint(canvas, textOffset);
+    // Vertical alignment
+    if (justify.toString().contains('top')) {
+      dy = 0;
+    } else if (justify.toString().contains('bottom')) {
+      dy = -size.height;
+    } else {
+      // Middle
+      dy = -size.height / 2;
+    }
+    return Offset(dx, dy);
   }
 
   /// Get connection points for a symbol (used for wire routing)

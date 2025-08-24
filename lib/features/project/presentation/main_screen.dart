@@ -9,13 +9,11 @@ import '../../../features/measurement/data/measurement_service.dart'
 import '../../../features/pcb_viewer/data/image_modification.dart';
 import '../../../features/pcb_viewer/presentation/pcb_viewer_panel.dart';
 import '../../../features/schematic/data/logical_models.dart';
-import '../../../features/schematic/data/visual_models.dart' as visual_models;
 import '../../../features/global_list/presentation/widgets/global_list_panel.dart';
 import '../../measurement/presentation/properties_panel.dart';
 import '../data/project.dart';
 import 'package:pcb_rev/features/pcb_viewer/data/image_processor.dart'
     as image_processor;
-import '../../symbol_library/data/kicad_symbol_models.dart';
 import '../../symbol_library/data/kicad_schematic_models.dart';
 import '../../symbol_library/data/kicad_schematic_loader.dart';
 import '../../symbol_library/data/kicad_symbol_loader.dart';
@@ -43,6 +41,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   @override
   void initState() {
     super.initState();
+    print('Initializing PCB Analyzer App...');
     _initializeProject();
     _loadDefaultSymbolLibrary();
   }
@@ -63,8 +62,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
   void _loadDefaultSymbolLibrary() async {
     try {
-      final libraryPath =
-          'lib/features/symbol_library/data/example_kicad_symbols.kicad_sym';
+      final libraryPath = 'test/kiProject1/example_kicad_symbols.kicad_sym';
       final loader = KiCadSymbolLoader(libraryPath);
       setState(() {
         _symbolLoader = loader;
