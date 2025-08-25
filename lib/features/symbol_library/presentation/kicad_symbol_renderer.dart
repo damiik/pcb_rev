@@ -26,13 +26,19 @@ class KiCadSymbolRenderer {
 
     canvas.translate(position.dx, position.dy);
 
+    // Apply mirroring first, then rotation
+    // Mirroring should be applied before rotation for correct transformation
+    final mx = mirrorY ? -1.0 : 1.0;
+    final my = mirrorX ? -1.0 : 1.0;
+    canvas.scale(mx, my);
+
     // KiCad uses inverted Y axis for symbols, so we apply this locally.
     if (rotation != 0) {
       canvas.rotate(-rotation * math.pi / 180);
     }
     canvas.scale(1, -1);
 
-    // Draw symbol units, passing mirror flags
+    // Draw symbol units (mirroring is now applied at canvas level)
     for (final unit in symbol.units) {
       _drawSymbolUnit(
         canvas,
@@ -46,6 +52,29 @@ class KiCadSymbolRenderer {
       );
     }
     // Restore canvas state to draw text properties in the correct space
+    canvas.restore();
+
+    // --- Draw Pin Text ---
+    // Pin text is drawn with position transformations but without canvas rotation to keep text readable
+    canvas.save();
+    canvas.translate(position.dx, position.dy);
+    canvas.scale(1, -1); // KiCad Y-axis inversion
+
+    for (final unit in symbol.units) {
+      for (final pin in unit.pins) {
+        _drawPinText(
+          canvas,
+          pin,
+          paint,
+          !symbol.hidePinNumbers,
+          mirrorX,
+          mirrorY,
+          mirrorY ? -1.0 : 1.0,
+          mirrorX ? -1.0 : 1.0,
+          rotation,
+        );
+      }
+    }
     canvas.restore();
 
     // --- Draw Text Properties (Reference, Value) ---
@@ -71,8 +100,9 @@ class KiCadSymbolRenderer {
     bool mirrorX,
     bool mirrorY,
   ) {
-    final mx = mirrorY ? -1.0 : 1.0;
-    final my = mirrorX ? -1.0 : 1.0;
+    // Mirroring is now applied at canvas level, so we use identity factors here
+    final mx = 1.0;
+    final my = 1.0;
 
     // Draw graphics (rectangles, etc.)
     for (final graphic in unit.graphics) {
@@ -180,8 +210,7 @@ class KiCadSymbolRenderer {
 
     canvas.drawLine(startPos, endPos, paint);
 
-    // Draw pin number and name text, handling mirroring for position but not text.
-    _drawPinText(canvas, pin, paint, showPinNumbers, mirrorX, mirrorY, mx, my);
+    // Pin text will be drawn separately outside canvas transformations to avoid mirroring
   }
 
   /// Draw pin number and name text.
@@ -195,6 +224,7 @@ class KiCadSymbolRenderer {
     bool mirrorY,
     double mx,
     double my,
+    double rotation,
   ) {
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
@@ -216,14 +246,17 @@ class KiCadSymbolRenderer {
       var distance = 0.2; // Distance from pin end
 
       if (showPinNumbers) {
-        if (pin.angle >= 315 || pin.angle < 45) {
+        // Calculate effective pin angle including symbol rotation
+        final effectivePinAngle = (pin.angle + rotation) % 360;
+
+        if (effectivePinAngle >= 315 || effectivePinAngle < 45) {
           // Left side
           numberOffset = Offset(pin.position.x, pin.position.y + 0.2);
-        } else if (pin.angle >= 45 && pin.angle < 135) {
+        } else if (effectivePinAngle >= 45 && effectivePinAngle < 135) {
           // Bottom side
           numberOffset = Offset(pin.position.x - 0.2, pin.position.y);
           angleRad = 90.0 * math.pi / 180.0;
-        } else if (pin.angle >= 135 && pin.angle < 225) {
+        } else if (effectivePinAngle >= 135 && effectivePinAngle < 225) {
           // Right side
           numberOffset = Offset(
             pin.position.x - pin.length + 0.2,
@@ -236,6 +269,16 @@ class KiCadSymbolRenderer {
             pin.position.y - pin.length + 0.2,
           );
           angleRad = 90.0 * math.pi / 180.0;
+        }
+
+        // Apply symbol rotation to pin text position
+        if (rotation != 0) {
+          final rotRad = rotation * math.pi / 180;
+          final cosR = math.cos(rotRad);
+          final sinR = math.sin(rotRad);
+          final rotX = numberOffset.dx * cosR - numberOffset.dy * sinR;
+          final rotY = numberOffset.dx * sinR - numberOffset.dy * cosR;
+          numberOffset = Offset(rotX, rotY);
         }
 
         canvas.save();
@@ -265,20 +308,23 @@ class KiCadSymbolRenderer {
         textPainter.layout();
         if (!showPinNumbers) distance = -1.5;
 
-        if (pin.angle >= 315 || pin.angle < 45) {
+        // Calculate effective pin angle including symbol rotation for pin name
+        final effectivePinAngle = (pin.angle + rotation) % 360;
+
+        if (effectivePinAngle >= 315 || effectivePinAngle < 45) {
           // Left side
           nameOffset = Offset(
             pin.position.x + pin.length + distance,
             pin.position.y - textPainter.height,
           );
-        } else if (pin.angle >= 45 && pin.angle < 135) {
+        } else if (effectivePinAngle >= 45 && effectivePinAngle < 135) {
           // Bottom side
           nameOffset = Offset(
             pin.position.x + textPainter.height,
             pin.position.y + pin.length + distance,
           );
           angleRad = 90.0 * math.pi / 180.0;
-        } else if (pin.angle >= 135 && pin.angle < 225) {
+        } else if (effectivePinAngle >= 135 && effectivePinAngle < 225) {
           // Right side
           nameOffset = Offset(
             pin.position.x - pin.length - textPainter.width - distance,
@@ -291,6 +337,16 @@ class KiCadSymbolRenderer {
             pin.position.y - pin.length - textPainter.width - distance,
           );
           angleRad = 90.0 * math.pi / 180.0;
+        }
+
+        // Apply symbol rotation to pin name position
+        if (rotation != 0) {
+          final rotRad = rotation * math.pi / 180;
+          final cosR = math.cos(rotRad);
+          final sinR = math.sin(rotRad);
+          final rotX = nameOffset.dx * cosR - nameOffset.dy * sinR;
+          final rotY = nameOffset.dx * sinR + nameOffset.dy * cosR;
+          nameOffset = Offset(rotX, rotY);
         }
 
         canvas.save();
@@ -371,6 +427,21 @@ class KiCadSymbolRenderer {
       // if (mirrorY) x = -x; // Mirror around Y-axis affects X coord
       // if (mirrorX) y = -y; // Mirror around X-axis affects Y coord
       propertyPainter.paint(canvas, Offset(x, y));
+
+      //   final angle = -property.position.angle; // KiCad angle is opposite
+
+      //   canvas.save();
+      //   canvas.translate(x, y);
+      //   if (angle != 0) {
+      //     canvas.rotate(angle * math.pi / 180);
+      //   }
+
+      //   final justificationOffset = _getJustificationOffset(
+      //     propertyPainter.size,
+      //     effects.justify,
+      //   );
+      //   propertyPainter.paint(canvas, justificationOffset);
+      //   canvas.restore();
 
       //   final angle = -property.position.angle; // KiCad angle is opposite
 
