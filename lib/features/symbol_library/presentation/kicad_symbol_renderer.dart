@@ -226,6 +226,17 @@ class KiCadSymbolRenderer {
     double my,
     double rotation,
   ) {
+    // Calculate effective pin angle again for correct text orientation (new method)
+    final rotationRad = rotation * (math.pi / 180);
+    // final angleRad = angle + rotationRad;
+    //final startPos = Offset(pin.position.x * mx, pin.position.y * my);
+    final rotatedPinPositionX =
+        pin.position.x * math.cos(rotationRad) -
+        pin.position.y * math.sin(rotationRad);
+    final rotatedPinPositionY =
+        pin.position.x * math.sin(rotationRad) +
+        pin.position.y * math.cos(rotationRad);
+
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
     // --- Draw Pin Number ---
@@ -251,40 +262,28 @@ class KiCadSymbolRenderer {
 
         if (effectivePinAngle >= 315 || effectivePinAngle < 45) {
           // Left side
-          numberOffset = Offset(pin.position.x, pin.position.y + 0.2);
+          numberOffset = Offset(0, 0.2);
         } else if (effectivePinAngle >= 45 && effectivePinAngle < 135) {
           // Bottom side
-          numberOffset = Offset(pin.position.x - 0.2, pin.position.y);
+          numberOffset = Offset(-0.2, 0);
           angleRad = 90.0 * math.pi / 180.0;
         } else if (effectivePinAngle >= 135 && effectivePinAngle < 225) {
           // Right side
-          numberOffset = Offset(
-            pin.position.x - pin.length + 0.2,
-            pin.position.y + 0.2,
-          );
+          numberOffset = Offset(-pin.length + 0.2, 0.2);
         } else {
           // Top side
-          numberOffset = Offset(
-            pin.position.x - 0.2,
-            pin.position.y - pin.length + 0.2,
-          );
+          numberOffset = Offset(-0.2, -pin.length + 0.2);
           angleRad = 90.0 * math.pi / 180.0;
         }
 
-        // Apply symbol rotation to pin text position
-        if (rotation != 0) {
-          final rotRad = rotation * math.pi / 180;
-          final cosR = math.cos(rotRad);
-          final sinR = math.sin(rotRad);
-          final rotX = numberOffset.dx * cosR - numberOffset.dy * sinR;
-          final rotY = numberOffset.dx * sinR - numberOffset.dy * cosR;
-          numberOffset = Offset(rotX, rotY);
-        }
-
+        final endPos = Offset(
+          (rotatedPinPositionX + numberOffset.dx) * mx,
+          (rotatedPinPositionY + numberOffset.dy) * my,
+        );
         canvas.save();
         canvas.translate(
-          numberOffset.dx * (mirrorY ? -1 : 1),
-          numberOffset.dy * (mirrorX ? -1 : 1),
+          endPos.dx * (mirrorX ? -1 : 1),
+          endPos.dy * (mirrorY ? -1 : 1),
         );
         canvas.rotate(angleRad);
         canvas.scale(
@@ -309,50 +308,37 @@ class KiCadSymbolRenderer {
         if (!showPinNumbers) distance = -1.5;
 
         // Calculate effective pin angle including symbol rotation for pin name
-        final effectivePinAngle = (pin.angle + rotation) % 360;
+        final effectivePinAngle = ((pin.angle + rotation) + 360) % 360;
 
         if (effectivePinAngle >= 315 || effectivePinAngle < 45) {
+          // 0
           // Left side
-          nameOffset = Offset(
-            pin.position.x + pin.length + distance,
-            pin.position.y - textPainter.height,
-          );
+          nameOffset = Offset(pin.length + distance, 0);
         } else if (effectivePinAngle >= 45 && effectivePinAngle < 135) {
+          // 90
           // Bottom side
-          nameOffset = Offset(
-            pin.position.x + textPainter.height,
-            pin.position.y + pin.length + distance,
-          );
+          nameOffset = Offset(0, pin.length + distance);
           angleRad = 90.0 * math.pi / 180.0;
         } else if (effectivePinAngle >= 135 && effectivePinAngle < 225) {
+          // 180
           // Right side
-          nameOffset = Offset(
-            pin.position.x - pin.length - textPainter.width - distance,
-            pin.position.y - textPainter.height,
-          );
+          nameOffset = Offset(-pin.length - textPainter.width - distance, 0);
         } else {
+          // 270
           // Top side
-          nameOffset = Offset(
-            pin.position.x + textPainter.height,
-            pin.position.y - pin.length - textPainter.width - distance,
-          );
+          nameOffset = Offset(0, -pin.length - textPainter.width - distance);
           angleRad = 90.0 * math.pi / 180.0;
         }
 
-        // Apply symbol rotation to pin name position
-        if (rotation != 0) {
-          final rotRad = rotation * math.pi / 180;
-          final cosR = math.cos(rotRad);
-          final sinR = math.sin(rotRad);
-          final rotX = nameOffset.dx * cosR - nameOffset.dy * sinR;
-          final rotY = nameOffset.dx * sinR + nameOffset.dy * cosR;
-          nameOffset = Offset(rotX, rotY);
-        }
+        final endPos = Offset(
+          (rotatedPinPositionX + nameOffset.dx) * mx,
+          (rotatedPinPositionY + nameOffset.dy) * my,
+        );
 
         canvas.save();
         canvas.translate(
-          nameOffset.dx * (mirrorY ? -1 : 1),
-          nameOffset.dy * (mirrorX ? -1 : 1),
+          endPos.dx * (mirrorX ? -1 : 1),
+          endPos.dy * (mirrorY ? -1 : 1),
         );
         canvas.rotate(angleRad);
         canvas.scale(
@@ -363,29 +349,6 @@ class KiCadSymbolRenderer {
         canvas.restore();
       }
     }
-  }
-
-  Offset _calculatePinNumberOffset(Pin pin, Size textSize) {
-    final pos = pin.position;
-    final angle = pin.angle * (math.pi / 180);
-    // Position inside the symbol body, near the pin root
-    final distance = (pin.numberEffects.font.height / 2) + 0.25;
-    final dx =
-        pos.x +
-        distance * math.cos(angle + math.pi); // Move opposite to pin direction
-    final dy = pos.y + distance * math.sin(angle + math.pi);
-    return Offset(dx, dy);
-  }
-
-  Offset _calculatePinNameOffset(Pin pin, Size textSize) {
-    final pos = pin.position;
-    final angle = pin.angle * (math.pi / 180);
-    final length = pin.length;
-    // Position outside the symbol body, near the pin tip
-    final distance = length + (pin.nameEffects.font.height / 2) + 0.25;
-    final dx = pos.x + distance * math.cos(angle);
-    final dy = pos.y + distance * math.sin(angle);
-    return Offset(dx, dy);
   }
 
   /// Draw component ID and value.
