@@ -363,7 +363,8 @@ class KiCadSymbolRenderer {
     for (final property in symbol.properties) {
       if ((property.name != 'Value' && property.name != 'Reference') ||
           property.value.isEmpty ||
-          property.hidden) {
+          property.hidden ||
+          property.effects.hide) {
         continue;
       }
 

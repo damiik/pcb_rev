@@ -9,6 +9,7 @@ final class KiCadSchematic {
   final List<SymbolInstance> symbols;
   final List<Wire> wires;
   final List<Junction> junctions;
+  final List<GlobalLabel> globalLabels;
 
   KiCadSchematic({
     required this.version,
@@ -18,6 +19,7 @@ final class KiCadSchematic {
     required this.symbols,
     required this.wires,
     required this.junctions,
+    required this.globalLabels,
   });
 }
 
@@ -61,4 +63,22 @@ final class Junction {
   final double diameter;
 
   Junction({required this.at, required this.uuid, required this.diameter});
+}
+
+enum LabelShape { input, output, bidirectional, triState, passive }
+
+class GlobalLabel {
+  final String text;
+  final LabelShape shape;
+  final Position at;
+  final String uuid;
+  final TextEffects effects;
+
+  GlobalLabel({
+    required this.text,
+    required this.shape,
+    required this.at,
+    required this.uuid,
+    required this.effects,
+  });
 }

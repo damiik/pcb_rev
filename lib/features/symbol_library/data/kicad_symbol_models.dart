@@ -199,8 +199,13 @@ final class Position {
 final class TextEffects {
   final Font font;
   final Justify justify;
+  final bool hide;
 
-  const TextEffects({required this.font, required this.justify});
+  const TextEffects({
+    required this.font,
+    required this.justify,
+    this.hide = false,
+  });
 }
 
 final class Font {

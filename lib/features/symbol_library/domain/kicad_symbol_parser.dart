@@ -494,6 +494,7 @@ final class KiCadParser {
   static TextEffects parseTextEffects(List<SExpr> elements) {
     var font = const Font(width: 1.27, height: 1.27);
     var justify = Justify.left;
+    var hide = false;
 
     for (final element in elements) {
       switch (element) {
@@ -516,12 +517,16 @@ final class KiCadParser {
           elements: [SAtom(value: 'justify'), SAtom(value: final j), ...],
         ):
           justify = parseJustify(j);
+
+        case SList(elements: [SAtom(value: 'hide'), SAtom(value: 'yes'), ...]):
+          hide = true;
+          break;
         default:
           break;
       }
     }
 
-    return TextEffects(font: font, justify: justify);
+    return TextEffects(font: font, justify: justify, hide: hide);
   }
 
   static PinType parsePinType(String type) => switch (type) {

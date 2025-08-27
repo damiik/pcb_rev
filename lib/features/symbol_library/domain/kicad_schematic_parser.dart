@@ -47,6 +47,7 @@ final class KiCadSchematicParser {
     final symbols = <SymbolInstance>[];
     final wires = <Wire>[];
     final junctions = <Junction>[];
+    final globalLabels = <GlobalLabel>[];
 
     for (final element in expr.elements.skip(1)) {
       switch (element) {
@@ -86,6 +87,12 @@ final class KiCadSchematicParser {
           junctions.add(_parseJunction(junctionElements));
           break;
 
+        case SList(
+          elements: [SAtom(value: 'global_label'), ...final labelElements],
+        ):
+          globalLabels.add(_parseGlobalLabel(labelElements));
+          break;
+
         default:
           break;
       }
@@ -99,6 +106,7 @@ final class KiCadSchematicParser {
       symbols: symbols,
       wires: wires,
       junctions: junctions,
+      globalLabels: globalLabels,
     );
   }
 
@@ -246,5 +254,57 @@ final class KiCadSchematicParser {
     }
 
     return Junction(at: at, uuid: uuid, diameter: diameter);
+  }
+
+  static GlobalLabel _parseGlobalLabel(List<SExpr> elements) {
+    String text = '';
+    LabelShape shape = LabelShape.passive;
+    Position at = Position(0, 0, 0);
+    String uuid = '';
+    TextEffects effects = TextEffects(
+      font: Font(width: 1.27, height: 1.27),
+      justify: Justify.left,
+    );
+
+    // The first element is the text of the label
+    if (elements.first is SAtom) {
+      text = (elements.first as SAtom).value;
+    }
+
+    for (final element in elements.skip(1)) {
+      if (element is SList) {
+        switch (element.elements.first) {
+          case SAtom(value: 'shape'):
+            if (element.elements[1] is SAtom) {
+              shape = LabelShape.values.firstWhere(
+                (e) =>
+                    e.toString().split('.').last ==
+                    (element.elements[1] as SAtom).value,
+                orElse: () => LabelShape.passive,
+              );
+            }
+          case SAtom(value: 'at'):
+            at = Position(
+              double.parse((element.elements[1] as SAtom).value),
+              double.parse((element.elements[2] as SAtom).value),
+              double.parse((element.elements[3] as SAtom).value),
+            );
+          case SAtom(value: 'uuid'):
+            uuid = (element.elements[1] as SAtom).value;
+          case SAtom(value: 'effects'):
+            effects = KiCadParser.parseTextEffects(element.elements.sublist(1));
+          default:
+            break;
+        }
+      }
+    }
+
+    return GlobalLabel(
+      text: text,
+      shape: shape,
+      at: at,
+      uuid: uuid,
+      effects: effects,
+    );
   }
 }
