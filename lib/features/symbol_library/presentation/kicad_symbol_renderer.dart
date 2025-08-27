@@ -67,10 +67,8 @@ class KiCadSymbolRenderer {
           pin,
           paint,
           !symbol.hidePinNumbers,
-          mirrorX,
-          mirrorY,
-          mirrorY ? -1.0 : 1.0,
-          mirrorX ? -1.0 : 1.0,
+          mx,
+          my,
           rotation,
         );
       }
@@ -143,12 +141,24 @@ class KiCadSymbolRenderer {
             canvas.drawPath(path, fillPaint);
           }
           break;
+
+        case Arc:
+          _drawArc(
+            canvas,
+            graphic as Arc,
+            paint,
+            fillPaint,
+            isSelected,
+            mx,
+            my,
+          );
+          break;
       }
     }
 
     // Draw pins
     for (final pin in unit.pins) {
-      _drawPin(canvas, pin, paint, showPinNumbers, mirrorX, mirrorY, mx, my);
+      _drawPin(canvas, pin, paint, showPinNumbers, mx, my);
     }
   }
 
@@ -186,14 +196,138 @@ class KiCadSymbolRenderer {
     canvas.drawRect(rect, rectPaint);
   }
 
+  /// Draw an arc graphic element, applying mirroring.
+  void _drawArc(
+    ui.Canvas canvas,
+    Arc arc,
+    Paint paint,
+    Paint fillPaint,
+    bool isSelected,
+    double mx,
+    double my,
+  ) {
+    // Apply mirroring to points
+    final start = Offset(arc.start.x * mx, arc.start.y * my);
+    final mid = Offset(arc.mid.x * mx, arc.mid.y * my);
+    final end = Offset(arc.end.x * mx, arc.end.y * my);
+
+    // Calculate arc parameters from three points
+    final center = _calculateArcCenter(start, mid, end);
+    final radius = _calculateArcRadius(center, start);
+    if (center == null || radius == null) {
+      // Fallback: draw as lines if arc calculation fails
+      final path = ui.Path();
+      path.moveTo(start.dx, start.dy);
+      path.lineTo(mid.dx, mid.dy);
+      path.lineTo(end.dx, end.dy);
+      canvas.drawPath(path, paint);
+      return;
+    }
+
+    final angles = _calculateArcAngles(center, start, end, mid);
+
+    if (angles == null) {
+      // Fallback: draw as lines if arc calculation fails
+      final path = ui.Path();
+      path.moveTo(start.dx, start.dy);
+      path.lineTo(mid.dx, mid.dy);
+      path.lineTo(end.dx, end.dy);
+      canvas.drawPath(path, paint);
+      return;
+    }
+
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final startAngle = angles.$1;
+    final sweepAngle = angles.$2;
+
+    // Draw the arc
+    Paint arcPaint = isSelected ? (paint..color = Colors.blue) : paint;
+    Paint arcFillPaint = isSelected
+        ? (fillPaint..color = Colors.blue.withOpacity(0.3))
+        : fillPaint;
+
+    if (arc.fill.type != FillType.none) {
+      canvas.drawArc(rect, startAngle, sweepAngle, true, arcFillPaint);
+    }
+    canvas.drawArc(rect, startAngle, sweepAngle, false, arcPaint);
+  }
+
+  /// Calculate the center of an arc given three points
+  Offset? _calculateArcCenter(Offset start, Offset mid, Offset end) {
+    // Calculate perpendicular bisectors
+    final mid1 = Offset((start.dx + mid.dx) / 2, (start.dy + mid.dy) / 2);
+    final dir1 = Offset(mid.dx - start.dx, mid.dy - start.dy);
+    final perp1 = Offset(-dir1.dy, dir1.dx);
+
+    final mid2 = Offset((mid.dx + end.dx) / 2, (mid.dy + end.dy) / 2);
+    final dir2 = Offset(end.dx - mid.dx, end.dy - mid.dy);
+    final perp2 = Offset(-dir2.dy, dir2.dx);
+
+    // Find intersection of perpendicular bisectors
+    final denom = perp1.dx * perp2.dy - perp1.dy * perp2.dx;
+    if (denom.abs() < 1e-10) return null; // Parallel lines
+
+    final t =
+        ((mid2.dx - mid1.dx) * perp2.dy - (mid2.dy - mid1.dy) * perp2.dx) /
+        denom;
+    return Offset(mid1.dx + t * perp1.dx, mid1.dy + t * perp1.dy);
+  }
+
+  /// Calculate the radius of an arc
+  double? _calculateArcRadius(Offset? center, Offset point) {
+    if (center == null) return null;
+    final diff = point - center;
+    return math.sqrt(diff.dx * diff.dx + diff.dy * diff.dy);
+  }
+
+  /// Calculate start angle and sweep angle for an arc
+  (double, double)? _calculateArcAngles(
+    Offset center,
+    Offset start,
+    Offset end,
+    Offset mid,
+  ) {
+    if (center == null) return null;
+
+    final startVector = start - center;
+    final endVector = end - center;
+    final midVector = mid - center;
+
+    final startAngle = math.atan2(startVector.dy, startVector.dx);
+    final endAngle = math.atan2(endVector.dy, endVector.dx);
+    final midAngle = math.atan2(midVector.dy, midVector.dx);
+
+    // Determine sweep direction based on mid point
+    var sweepAngle = endAngle - startAngle;
+
+    // Check if mid point suggests clockwise or counterclockwise sweep
+    final midDiff =
+        (midAngle - startAngle + 3 * math.pi) % (2 * math.pi) - math.pi;
+    final endDiff =
+        (endAngle - startAngle + 3 * math.pi) % (2 * math.pi) - math.pi;
+
+    if ((midDiff > 0 && endDiff < 0) || (midDiff < 0 && endDiff > 0)) {
+      // Different signs, need to determine correct direction
+      if (midDiff.abs() < math.pi && endDiff.abs() > math.pi) {
+        sweepAngle = -sweepAngle;
+      } else if (midDiff.abs() > math.pi && endDiff.abs() < math.pi) {
+        sweepAngle = -sweepAngle;
+      }
+    }
+
+    // Normalize sweep angle to be between -2π and 2π
+    while (sweepAngle > 2 * math.pi) sweepAngle -= 2 * math.pi;
+    while (sweepAngle < -2 * math.pi) sweepAngle += 2 * math.pi;
+
+    return (startAngle, sweepAngle);
+  }
+
   /// Draw a pin, applying mirroring.
   void _drawPin(
     ui.Canvas canvas,
     Pin pin,
     Paint paint,
     bool showPinNumbers,
-    bool mirrorX,
-    bool mirrorY,
     double mx,
     double my,
   ) {
@@ -220,8 +354,6 @@ class KiCadSymbolRenderer {
     Pin pin,
     Paint paint,
     bool showPinNumbers,
-    bool mirrorX,
-    bool mirrorY,
     double mx,
     double my,
     double rotation,
@@ -276,14 +408,10 @@ class KiCadSymbolRenderer {
           angleRad = 90.0 * math.pi / 180.0;
         }
 
-        final endPos = Offset(
-          (rotatedPinPositionX + numberOffset.dx) * mx,
-          (rotatedPinPositionY + numberOffset.dy) * my,
-        );
         canvas.save();
         canvas.translate(
-          endPos.dx * (mirrorX ? -1 : 1),
-          endPos.dy * (mirrorY ? -1 : 1),
+          (rotatedPinPositionX + numberOffset.dx) * mx,
+          (rotatedPinPositionY + numberOffset.dy) * my,
         );
         canvas.rotate(angleRad);
         canvas.scale(
@@ -330,15 +458,10 @@ class KiCadSymbolRenderer {
           angleRad = 90.0 * math.pi / 180.0;
         }
 
-        final endPos = Offset(
-          (rotatedPinPositionX + nameOffset.dx) * mx,
-          (rotatedPinPositionY + nameOffset.dy) * my,
-        );
-
         canvas.save();
         canvas.translate(
-          endPos.dx * (mirrorX ? -1 : 1),
-          endPos.dy * (mirrorY ? -1 : 1),
+          (rotatedPinPositionX + nameOffset.dx) * mx,
+          (rotatedPinPositionY + nameOffset.dy) * my,
         );
         canvas.rotate(angleRad);
         canvas.scale(
@@ -500,6 +623,36 @@ class KiCadSymbolRenderer {
           maxX = math.max(maxX, graphic.end.x);
           minY = math.min(minY, graphic.start.y);
           maxY = math.max(maxY, graphic.end.y);
+        } else if (graphic is Circle) {
+          final center = graphic.center;
+          final radius = graphic.radius;
+          minX = math.min(minX, center.x - radius);
+          maxX = math.max(maxX, center.x + radius);
+          minY = math.min(minY, center.y - radius);
+          maxY = math.max(maxY, center.y + radius);
+        } else if (graphic is Arc) {
+          // Include all three points that define the arc
+          minX = math.min(minX, graphic.start.x);
+          maxX = math.max(maxX, graphic.start.x);
+          minY = math.min(minY, graphic.start.y);
+          maxY = math.max(maxY, graphic.start.y);
+
+          minX = math.min(minX, graphic.mid.x);
+          maxX = math.max(maxX, graphic.mid.x);
+          minY = math.min(minY, graphic.mid.y);
+          maxY = math.max(maxY, graphic.mid.y);
+
+          minX = math.min(minX, graphic.end.x);
+          maxX = math.max(maxX, graphic.end.x);
+          minY = math.min(minY, graphic.end.y);
+          maxY = math.max(maxY, graphic.end.y);
+        } else if (graphic is Polyline) {
+          for (final point in graphic.points) {
+            minX = math.min(minX, point.x);
+            maxX = math.max(maxX, point.x);
+            minY = math.min(minY, point.y);
+            maxY = math.max(maxY, point.y);
+          }
         }
       }
 

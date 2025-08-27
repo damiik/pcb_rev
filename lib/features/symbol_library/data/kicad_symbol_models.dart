@@ -125,6 +125,22 @@ final class Polyline extends GraphicElement {
   Polyline({required this.points, required this.stroke, required this.fill});
 }
 
+final class Arc extends GraphicElement {
+  final Position start;
+  final Position mid;
+  final Position end;
+  final Stroke stroke;
+  final Fill fill;
+
+  Arc({
+    required this.start,
+    required this.mid,
+    required this.end,
+    required this.stroke,
+    required this.fill,
+  });
+}
+
 final class Pin extends KiCadElement {
   final PinType type;
   final PinStyle style;

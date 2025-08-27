@@ -229,6 +229,9 @@ final class KiCadParser {
         ):
           graphics.add(parsePolyline(polylineElements));
 
+        case SList(elements: [SAtom(value: 'arc'), ...final arcElements]):
+          graphics.add(parseArc(arcElements));
+
         case SList(elements: [SAtom(value: 'pin'), ...final pinElements]):
           pins.add(parsePin(pinElements));
 
@@ -403,6 +406,72 @@ final class KiCadParser {
     }
 
     return Polyline(points: points, stroke: stroke, fill: fill);
+  }
+
+  static Arc parseArc(List<SExpr> elements) {
+    Position? start, mid, end;
+    var stroke = const Stroke(width: 0.254);
+    var fill = const Fill(type: FillType.none);
+
+    for (final element in elements) {
+      switch (element) {
+        case SList(
+          elements: [
+            SAtom(value: 'start'),
+            SAtom(value: final x),
+            SAtom(value: final y),
+            ...,
+          ],
+        ):
+          start = Position(double.parse(x), double.parse(y));
+        case SList(
+          elements: [
+            SAtom(value: 'mid'),
+            SAtom(value: final x),
+            SAtom(value: final y),
+            ...,
+          ],
+        ):
+          mid = Position(double.parse(x), double.parse(y));
+        case SList(
+          elements: [
+            SAtom(value: 'end'),
+            SAtom(value: final x),
+            SAtom(value: final y),
+            ...,
+          ],
+        ):
+          end = Position(double.parse(x), double.parse(y));
+        case SList(
+          elements: [
+            SAtom(value: 'stroke'),
+            SList(
+              elements: [SAtom(value: 'width'), SAtom(value: final w), ...],
+            ),
+            ...,
+          ],
+        ):
+          stroke = Stroke(width: double.parse(w));
+        case SList(
+          elements: [
+            SAtom(value: 'fill'),
+            SList(elements: [SAtom(value: 'type'), SAtom(value: final t), ...]),
+            ...,
+          ],
+        ):
+          fill = Fill(type: parseFillType(t));
+        default:
+          break;
+      }
+    }
+
+    return Arc(
+      start: start ?? const Position(0, 0),
+      mid: mid ?? const Position(0, 0),
+      end: end ?? const Position(0, 0),
+      stroke: stroke,
+      fill: fill,
+    );
   }
 
   static Pin parsePin(List<SExpr> elements) {

@@ -123,7 +123,6 @@ class KiCadSchematicRenderer {
       canvas.save();
       canvas.translate(label.at.x, label.at.y);
 
-      // TODO: Adjust text position based on label shape and rotation
       textPainter.paint(
         canvas,
         Offset(
@@ -161,8 +160,8 @@ class KiCadSchematicRenderer {
         path.lineTo(0, 0);
         path.lineTo(0.4, len * 0.3);
         path.lineTo(length, len * 0.3);
-
         break;
+
       case LabelShape.output:
         path.moveTo(0, len * 0.3);
         path.lineTo(0, -len * 0.3);
@@ -171,16 +170,17 @@ class KiCadSchematicRenderer {
         path.lineTo(length, len * 0.3);
         path.lineTo(0, len * 0.3);
         break;
-      case LabelShape.bidirectional: // TODO
-        path.moveTo(0, 0);
-        path.lineTo(len, 0);
-        path.moveTo(len * 0.3, -len * 0.4);
+
+      case LabelShape.bidirectional:
+        path.moveTo(0.4, len * 0.3);
         path.lineTo(0, 0);
-        path.lineTo(len * 0.3, len * 0.4);
-        path.moveTo(len * 0.7, -len * 0.4);
-        path.lineTo(len, 0);
-        path.lineTo(len * 0.7, len * 0.4);
+        path.lineTo(0.4, -len * 0.3);
+        path.lineTo(length, -len * 0.3);
+        path.lineTo(length + 0.4, 0);
+        path.lineTo(length, len * 0.3);
+        path.lineTo(0.4, len * 0.3);
         break;
+
       default: // passive and others
         path.moveTo(0, 0);
         path.lineTo(len, 0);
