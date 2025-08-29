@@ -140,7 +140,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
               Row(
                 children: [
                   Expanded(
-                    flex: 2,
+                    flex: 1,
                     child: GlobalListPanel(
                       components:
                           currentProject?.logicalComponents.values.toList() ??
@@ -148,11 +148,12 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                       nets: currentProject?.logicalNets.values.toList() ?? [],
                       onComponentSelected: _selectComponent,
                       onNetSelected: _selectNet,
+                      schematic: _loadedSchematic,
                     ),
                   ),
                   Expanded(flex: 5, child: _buildMainPanel()),
                   Expanded(
-                    flex: 3,
+                    flex: 1,
                     child: PropertiesPanel(
                       measurementState: measurementState,
                       onMeasurementAdded: _addMeasurement,
