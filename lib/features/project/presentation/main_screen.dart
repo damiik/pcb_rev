@@ -17,6 +17,8 @@ import 'package:pcb_rev/features/pcb_viewer/data/image_processor.dart'
 import '../../symbol_library/data/kicad_schematic_models.dart';
 import '../../symbol_library/data/kicad_schematic_loader.dart';
 import '../../symbol_library/data/kicad_symbol_loader.dart';
+import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_models.dart'
+    as kicad_symbol_models;
 import '../../symbol_library/presentation/schematic_view.dart';
 
 enum ViewMode { pcb, schematic }
@@ -32,11 +34,13 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   int _currentImageIndex = 0;
   LogicalComponent? _draggingComponent;
   bool _isProcessingImage = false;
-  measurement_service.MeasurementState measurementState = measurement_service
-      .createInitialMeasurementState();
+  measurement_service.MeasurementState measurementState =
+      measurement_service.createInitialMeasurementState();
   bool _dragging = false;
   KiCadSchematic? _loadedSchematic;
   KiCadSymbolLoader? _symbolLoader;
+  kicad_symbol_models.Position? _centerOnPosition;
+  String? _selectedSymbolId;
 
   @override
   void initState() {
@@ -114,9 +118,8 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                 ],
                 onPressed: (index) {
                   setState(() {
-                    _currentView = index == 0
-                        ? ViewMode.pcb
-                        : ViewMode.schematic;
+                    _currentView =
+                        index == 0 ? ViewMode.pcb : ViewMode.schematic;
                   });
                 },
                 children: [Icon(Icons.image), Icon(Icons.schema)],
@@ -144,7 +147,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                     child: GlobalListPanel(
                       components:
                           currentProject?.logicalComponents.values.toList() ??
-                          [],
+                              [],
                       nets: currentProject?.logicalNets.values.toList() ?? [],
                       onComponentSelected: _selectComponent,
                       onNetSelected: _selectNet,
@@ -183,7 +186,11 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     switch (_currentView) {
       case ViewMode.schematic:
         if (_loadedSchematic != null) {
-          return SchematicView(schematic: _loadedSchematic!);
+          return SchematicView(
+            schematic: _loadedSchematic!,
+            centerOn: _centerOnPosition,
+            selectedSymbolId: _selectedSymbolId,
+          );
         } else {
           return Center(
             child: Column(
@@ -273,9 +280,36 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   }
 
   void _selectComponent(LogicalComponent component) {
-    setState(() {
-      // Logic to handle component selection in the UI
-    });
+    if (_loadedSchematic == null) return;
+
+    SymbolInstance? foundSymbol;
+    for (final symbol in _loadedSchematic!.symbols) {
+      final reference = _getPropertyValue(symbol.properties, 'Reference');
+      if (reference == component.id) {
+        foundSymbol = symbol;
+        break;
+      }
+    }
+
+    if (foundSymbol != null) {
+      setState(() {
+        _centerOnPosition = foundSymbol!.at;
+        _selectedSymbolId = foundSymbol!.uuid;
+        _currentView = ViewMode.schematic;
+      });
+    }
+  }
+
+  String? _getPropertyValue(
+    List<kicad_symbol_models.Property> properties,
+    String propertyName,
+  ) {
+    for (final p in properties) {
+      if (p.name == propertyName) {
+        return p.value;
+      }
+    }
+    return null;
   }
 
   void _selectNet(LogicalNet net) {
@@ -391,9 +425,9 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
   Future<void> _openProject() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
-      // type: FileType.custom,
-      // allowedExtensions: ['pcbrev'],
-    );
+        // type: FileType.custom,
+        // allowedExtensions: ['pcbrev'],
+        );
 
     if (result != null) {
       final file = File(result.files.single.path!);

@@ -10,12 +10,22 @@ const double kicadJunctionSize = 0.5;
 const ui.Color kicadWireColor = ui.Color(0xFF87BB4C);
 const ui.Color kicadSymbolColor = ui.Color(0xFFE08A62);
 const ui.Color kicadLabelColor = ui.Color(0xFF4C96BB);
+const ui.Color kicadHighlightColor = Colors.yellow;
+
+double calcSafeAngleRad(double angle) => angle >= 90 && angle < 180
+    ? -90 * (3.14159 / 180)
+    : angle >= 180 && angle < 270
+        ? 0
+        : angle >= 270 && angle < 360
+            ? -90 * (3.14159 / 180)
+            : 0;
 
 /// Renderer for a full KiCad schematic.
 class KiCadSchematicRenderer {
   final Map<String, Symbol> _symbolCache;
+  final String? selectedSymbolId;
 
-  KiCadSchematicRenderer(this._symbolCache);
+  KiCadSchematicRenderer(this._symbolCache, {this.selectedSymbolId});
 
   /// Renders the entire schematic onto a canvas.
   void render(ui.Canvas canvas, ui.Size size, KiCadSchematic schematic) {
@@ -51,9 +61,8 @@ class KiCadSchematicRenderer {
       canvas.drawPath(
         path,
         paint
-          ..strokeWidth = wire.stroke.width > 0
-              ? wire.stroke.width
-              : kicadStrokeWidth,
+          ..strokeWidth =
+              wire.stroke.width > 0 ? wire.stroke.width : kicadStrokeWidth,
       );
     }
   }
@@ -74,9 +83,8 @@ class KiCadSchematicRenderer {
       canvas.drawPath(
         path,
         paint
-          ..strokeWidth = bus.stroke.width > 0
-              ? bus.stroke.width
-              : kicadStrokeWidth * 3,
+          ..strokeWidth = 
+              bus.stroke.width > 0 ? bus.stroke.width : kicadStrokeWidth * 3,
       );
     }
   }
@@ -97,9 +105,8 @@ class KiCadSchematicRenderer {
       canvas.drawPath(
         path,
         paint
-          ..strokeWidth = entry.stroke.width > 0
-              ? entry.stroke.width
-              : kicadStrokeWidth,
+          ..strokeWidth = 
+              entry.stroke.width > 0 ? entry.stroke.width : kicadStrokeWidth,
       );
     }
   }
@@ -132,6 +139,15 @@ class KiCadSchematicRenderer {
       ..color = kicadSymbolColor
       ..style = PaintingStyle.fill;
 
+    final highlightPaint = Paint()
+      ..color = kicadHighlightColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = kicadStrokeWidth * 1.5;
+
+    final highlightFillPaint = Paint()
+      ..color = kicadHighlightColor.withOpacity(0.5)
+      ..style = PaintingStyle.fill;
+
     for (final symbolInstance in symbols) {
       final symbol = _symbolCache[symbolInstance.libId];
       if (symbol == null) {
@@ -139,12 +155,14 @@ class KiCadSchematicRenderer {
         continue;
       }
 
+      final bool isSelected = symbolInstance.uuid == selectedSymbolId;
+
       symbolRenderer.renderSymbol(
         canvas,
         symbol,
         symbolInstance,
-        paint,
-        fillPaint,
+        isSelected ? highlightPaint : paint,
+        isSelected ? highlightFillPaint : fillPaint,
       );
     }
   }
@@ -172,10 +190,10 @@ class KiCadSchematicRenderer {
       final angle = label.at.angle >= 90 && label.at.angle < 180
           ? -90
           : label.at.angle >= 180 && label.at.angle < 270
-          ? 0
-          : label.at.angle >= 270 && label.at.angle < 360
-          ? -90
-          : 0;
+              ? 0
+              : label.at.angle >= 270 && label.at.angle < 360
+                  ? -90
+                  : 0;
 
       canvas.save();
       canvas.translate(label.at.x, label.at.y);

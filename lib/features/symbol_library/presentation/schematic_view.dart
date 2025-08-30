@@ -5,8 +5,15 @@ import 'kicad_schematic_renderer.dart';
 
 class SchematicView extends StatefulWidget {
   final KiCadSchematic schematic;
+  final Position? centerOn;
+  final String? selectedSymbolId;
 
-  const SchematicView({Key? key, required this.schematic}) : super(key: key);
+  const SchematicView(
+      {Key? key,
+      required this.schematic,
+      this.centerOn,
+      this.selectedSymbolId})
+      : super(key: key);
 
   @override
   _SchematicViewState createState() => _SchematicViewState();
@@ -14,11 +21,45 @@ class SchematicView extends StatefulWidget {
 
 class _SchematicViewState extends State<SchematicView> {
   Map<String, Symbol>? _symbolCache;
+  late TransformationController _transformationController;
 
   @override
   void initState() {
     super.initState();
+    _transformationController = TransformationController();
     _loadSymbols();
+  }
+
+  @override
+  void didUpdateWidget(covariant SchematicView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.schematic != oldWidget.schematic) {
+      _loadSymbols();
+    }
+    if (widget.centerOn != null && widget.centerOn != oldWidget.centerOn) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _centerOnPosition(widget.centerOn!);
+      });
+    }
+  }
+
+  void _centerOnPosition(Position position) {
+    final screenSize = context.size;
+    if (screenSize == null) return;
+
+    final schematicCenterPx = Offset(
+      position.x * kicadUnitToPx,
+      position.y * kicadUnitToPx,
+    );
+
+    final screenCenterPx = Offset(screenSize.width / 2, screenSize.height / 2);
+
+    final translation = screenCenterPx - schematicCenterPx;
+
+    final matrix = Matrix4.identity()
+      ..translate(translation.dx, translation.dy);
+
+    _transformationController.value = matrix;
   }
 
   void _loadSymbols() {
@@ -44,6 +85,7 @@ class _SchematicViewState extends State<SchematicView> {
     }
 
     return InteractiveViewer(
+      transformationController: _transformationController,
       constrained: false, // Allow panning beyond screen limits
       boundaryMargin: EdgeInsets.all(double.infinity),
       minScale: 0.1,
@@ -53,17 +95,28 @@ class _SchematicViewState extends State<SchematicView> {
         painter: _SchematicPainter(
           schematic: widget.schematic,
           symbolCache: _symbolCache!,
+          selectedSymbolId: widget.selectedSymbolId,
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _transformationController.dispose();
+    super.dispose();
   }
 }
 
 class _SchematicPainter extends CustomPainter {
   final KiCadSchematic schematic;
   final Map<String, Symbol> symbolCache;
+  final String? selectedSymbolId;
 
-  _SchematicPainter({required this.schematic, required this.symbolCache});
+  _SchematicPainter(
+      {required this.schematic,
+      required this.symbolCache,
+      this.selectedSymbolId});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -73,13 +126,14 @@ class _SchematicPainter extends CustomPainter {
       Paint()..color = Colors.grey[850]!,
     );
 
-    final renderer = KiCadSchematicRenderer(symbolCache);
+    final renderer = KiCadSchematicRenderer(symbolCache, selectedSymbolId: selectedSymbolId);
     renderer.render(canvas, size, schematic);
   }
 
   @override
   bool shouldRepaint(_SchematicPainter oldDelegate) {
     return oldDelegate.schematic != schematic ||
-        oldDelegate.symbolCache != symbolCache;
+        oldDelegate.symbolCache != symbolCache ||
+        oldDelegate.selectedSymbolId != selectedSymbolId;
   }
 }

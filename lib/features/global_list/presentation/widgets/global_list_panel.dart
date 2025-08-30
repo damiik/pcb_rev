@@ -3,7 +3,7 @@ import '../../../schematic/data/logical_models.dart';
 import '../../../symbol_library/data/kicad_schematic_models.dart';
 import '../../../symbol_library/data/kicad_symbol_models.dart' as kicad_models;
 
-class GlobalListPanel extends StatelessWidget {
+class GlobalListPanel extends StatefulWidget {
   final List<LogicalComponent> components;
   final List<LogicalNet> nets;
   final Function(LogicalComponent) onComponentSelected;
@@ -19,20 +19,83 @@ class GlobalListPanel extends StatelessWidget {
   });
 
   @override
+  _GlobalListPanelState createState() => _GlobalListPanelState();
+}
+
+class _GlobalListPanelState extends State<GlobalListPanel> {
+  late final TextEditingController _searchController;
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  String? _getPropertyValue(
+    List<kicad_models.Property> properties,
+    String propertyName,
+  ) {
+    final property = properties.where((p) => p.name == propertyName).firstOrNull;
+    return property?.value;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final filteredComponents = _filterComponents(_query);
+    final filteredNets = _filterNets(_query);
+
     return DefaultTabController(
       length: 2,
       child: Column(
         children: [
           TabBar(
             tabs: [
-              Tab(text: 'Components'),
-              Tab(text: 'Nets'),
+              Tab(text: 'Components (${filteredComponents.length})'),
+              Tab(text: 'Nets (${filteredNets.length})'),
             ],
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Search',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(4.0),
+                ),
+                suffixIcon: _query.isNotEmpty
+                    ? IconButton(
+                        icon: Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _query = '';
+                          });
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _query = value.toLowerCase();
+                });
+              },
+            ),
           ),
           Expanded(
             child: TabBarView(
-              children: [_buildComponentList(), _buildNetList()],
+              children: [
+                _buildComponentList(filteredComponents),
+                _buildNetList(filteredNets)
+              ],
             ),
           ),
         ],
@@ -40,48 +103,47 @@ class GlobalListPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildComponentList() {
-    // If schematic is available, show schematic components
-    if (schematic != null && schematic!.symbols.isNotEmpty) {
-      return ListView.builder(
-        itemCount: schematic!.symbols.length,
-        itemBuilder: (context, index) {
-          final symbolInstance = schematic!.symbols[index];
+  List<LogicalComponent> _filterComponents(String query) {
+    if (widget.schematic != null && widget.schematic!.symbols.isNotEmpty) {
+      return widget.schematic!.symbols
+          .map((symbol) {
+            final reference =
+                _getPropertyValue(symbol.properties, 'Reference') ?? '';
+            final value = _getPropertyValue(symbol.properties, 'Value') ?? '';
+            final partNumber =
+                _getPropertyValue(symbol.properties, 'Footprint') ?? '';
 
-          // Extract reference and value from properties
-          final reference =
-              _getPropertyValue(symbolInstance.properties, 'Reference') ??
-              'Unknown';
-          final value =
-              _getPropertyValue(symbolInstance.properties, 'Value') ?? '';
-
-          return ListTile(
-            title: Text(reference),
-            subtitle: Text(
-              '${symbolInstance.libId} ${value.isNotEmpty ? '- $value' : ''}',
-            ),
-            trailing: Icon(Icons.schema, size: 16),
-            onTap: () {
-              // For now, we'll create a dummy LogicalComponent for compatibility
-              // This could be enhanced to pass the SymbolInstance directly
-              final dummyComponent = (
-                id: reference,
-                type: symbolInstance.libId,
-                variant: null,
-                value: value,
-                partNumber:
-                    _getPropertyValue(symbolInstance.properties, 'Footprint') ??
-                    '',
-                pins: <String, Pin>{},
-              );
-              onComponentSelected(dummyComponent);
-            },
-          );
-        },
-      );
+            return (
+              id: reference,
+              type: symbol.libId,
+              variant: null,
+              value: value,
+              partNumber: partNumber,
+              pins: <String, Pin>{},
+            );
+          })
+          .where((component) =>
+              component.id.toLowerCase().contains(query) ||
+              component.type.toLowerCase().contains(query) ||
+              (component.value?.toLowerCase().contains(query) ?? false))
+          .toList();
+    } else {
+      return widget.components
+          .where((component) =>
+              component.id.toLowerCase().contains(query) ||
+              (component.type.toLowerCase().contains(query)) ||
+              (component.value?.toLowerCase().contains(query) ?? false))
+          .toList();
     }
+  }
 
-    // Otherwise, show logical components as before
+  List<LogicalNet> _filterNets(String query) {
+    return widget.nets
+        .where((net) => net.name.toLowerCase().contains(query))
+        .toList();
+  }
+
+  Widget _buildComponentList(List<LogicalComponent> components) {
     return ListView.builder(
       itemCount: components.length,
       itemBuilder: (context, index) {
@@ -89,23 +151,13 @@ class GlobalListPanel extends StatelessWidget {
         return ListTile(
           title: Text(component.id),
           subtitle: Text('${component.type} ${component.value ?? ""}'),
-          onTap: () => onComponentSelected(component),
+          onTap: () => widget.onComponentSelected(component),
         );
       },
     );
   }
 
-  String? _getPropertyValue(
-    List<kicad_models.Property> properties,
-    String propertyName,
-  ) {
-    final property = properties
-        .where((p) => p?.name == propertyName)
-        .firstOrNull;
-    return property?.value;
-  }
-
-  Widget _buildNetList() {
+  Widget _buildNetList(List<LogicalNet> nets) {
     return ListView.builder(
       itemCount: nets.length,
       itemBuilder: (context, index) {
@@ -113,7 +165,7 @@ class GlobalListPanel extends StatelessWidget {
         return ListTile(
           title: Text(net.name),
           subtitle: Text('${net.connections.length} connections'),
-          onTap: () => onNetSelected(net),
+          onTap: () => widget.onNetSelected(net),
         );
       },
     );
