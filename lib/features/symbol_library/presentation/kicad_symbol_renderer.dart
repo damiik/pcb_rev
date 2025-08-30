@@ -4,6 +4,14 @@ import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_models.dart
 import 'dart:math' as math;
 import '../data/kicad_symbol_models.dart';
 
+double calcSafeAngleRad(double angle) => angle >= 90 && angle < 180
+    ? -90 * (3.14159 / 180)
+    : angle >= 180 && angle < 270
+    ? 0
+    : angle >= 270 && angle < 360
+    ? -90 * (3.14159 / 180)
+    : 0;
+
 /// Renderer for KiCad symbols on canvas
 class KiCadSymbolRenderer {
   /// Render a KiCad symbol on the canvas
@@ -51,6 +59,7 @@ class KiCadSymbolRenderer {
         mirrorY,
       );
     }
+
     // Restore canvas state to draw text properties in the correct space
     canvas.restore();
 
@@ -80,10 +89,17 @@ class KiCadSymbolRenderer {
     canvas.save();
     // canvas.translate(position.dx, position.dy);
     // if (rotation != 0) {
-    //   canvas.rotate(-rotation * math.pi / 180);
+    //   canvas.rotate(calcSafeAngleRad(rotation));
     // }
     // We don't use canvas.scale(1, -1) here, so Y is downwards.
-    _drawComponentInfo(canvas, symbolInstance, paint, mirrorX, mirrorY);
+    _drawComponentInfo(
+      canvas,
+      symbolInstance,
+      paint,
+      mirrorX,
+      mirrorY,
+      rotation,
+    );
     canvas.restore();
   }
 
@@ -482,6 +498,7 @@ class KiCadSymbolRenderer {
     Paint paint,
     bool mirrorX,
     bool mirrorY,
+    double rotation,
   ) {
     for (final property in symbol.properties) {
       if ((property.name != 'Value' && property.name != 'Reference') ||
@@ -508,12 +525,36 @@ class KiCadSymbolRenderer {
       // Mirror the text's position, but not the text itself.
       // The Y coordinate is negated because this canvas context has Y pointing down,
       // opposite to the symbol's internal coordinate system.
-      var x = property.position.x;
-      var y = property.position.y;
+      canvas.save();
+      canvas.translate(property.position.x, property.position.y);
+      canvas.rotate(calcSafeAngleRad(property.position.angle + rotation));
+      // var x = property.position.x;
+      // var y = property.position.y;
 
       // if (mirrorY) x = -x; // Mirror around Y-axis affects X coord
       // if (mirrorX) y = -y; // Mirror around X-axis affects Y coord
-      propertyPainter.paint(canvas, Offset(x, y));
+      final double spacing = 0;
+
+      final offset = switch (property.effects.justify) {
+        Justify.left => Offset(0, spacing),
+        Justify.center => Offset(
+          -propertyPainter.width / 2,
+          -propertyPainter.height / 2,
+        ),
+        Justify.right => Offset(-propertyPainter.width, spacing),
+        Justify.top => Offset(0, spacing),
+        Justify.bottom => Offset(0, -propertyPainter.height - spacing),
+        Justify.topLeft => Offset(0, 0),
+        Justify.topRight => Offset(-propertyPainter.width, spacing),
+        Justify.bottomLeft => Offset(0, -propertyPainter.height - spacing),
+        Justify.bottomRight => Offset(
+          -propertyPainter.width,
+          -propertyPainter.height - spacing,
+        ),
+      };
+
+      propertyPainter.paint(canvas, offset);
+      canvas.restore();
 
       //   final angle = -property.position.angle; // KiCad angle is opposite
 

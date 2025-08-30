@@ -164,6 +164,7 @@ final class KiCadParser {
       font: Font(width: 1.27, height: 1.27),
       justify: Justify.left,
     );
+    // print("parseProperty: $name, $value");
 
     for (final element in elements.skip(2)) {
       switch (element) {
@@ -562,7 +563,7 @@ final class KiCadParser {
 
   static TextEffects parseTextEffects(List<SExpr> elements) {
     var font = const Font(width: 1.27, height: 1.27);
-    var justify = Justify.left;
+    var justify = Justify.center; // Default justification -> no justification
     var hide = false;
 
     for (final element in elements) {
@@ -597,6 +598,7 @@ final class KiCadParser {
         case SList(
           elements: [SAtom(value: 'justify'), SAtom(value: final j), ...],
         ):
+          // print("Parse justify: $j");
           justify = parseJustify(j);
 
         case SList(elements: [SAtom(value: 'hide'), SAtom(value: 'yes'), ...]):
@@ -654,7 +656,7 @@ final class KiCadParser {
     'top_right' => Justify.topRight,
     'bottom_left' => Justify.bottomLeft,
     'bottom_right' => Justify.bottomRight,
-    _ => Justify.left,
+    _ => Justify.center,
   };
 
   static Justify parseJustify2(String justify, String justify2) =>
@@ -667,6 +669,6 @@ final class KiCadParser {
         ['center', 'top'] => Justify.top,
         ['left', 'center'] => Justify.left,
         ['right', 'center'] => Justify.right,
-        _ => Justify.left,
+        _ => Justify.center,
       };
 }

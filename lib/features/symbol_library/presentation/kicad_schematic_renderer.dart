@@ -219,17 +219,18 @@ class KiCadSchematicRenderer {
 
       textPainter.layout();
       final spacing = 0.5; // Small spacing from the label shape
-      final angle = label.at.angle >= 90 && label.at.angle < 180
-          ? -90
-          : label.at.angle >= 180 && label.at.angle < 270
-          ? 0
-          : label.at.angle >= 270 && label.at.angle < 360
-          ? -90
-          : 0;
+      // final angle = label.at.angle >= 90 && label.at.angle < 180
+      //     ? -90
+      //     : label.at.angle >= 180 && label.at.angle < 270
+      //     ? 0
+      //     : label.at.angle >= 270 && label.at.angle < 360
+      //     ? -90
+      //     : 0;
 
       canvas.save();
       canvas.translate(label.at.x, label.at.y);
-      canvas.rotate(angle * (3.14159 / 180)); // KiCad rotation is in degrees
+      // canvas.rotate(angle * (3.14159 / 180)); // KiCad rotation is in degrees
+      canvas.rotate(calcSafeAngleRad(label.at.angle));
       final offset = switch (label.effects.justify) {
         Justify.left => Offset(0, spacing),
         Justify.center => Offset(-textPainter.width / 2, spacing),
