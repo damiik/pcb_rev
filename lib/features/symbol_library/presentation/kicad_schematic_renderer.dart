@@ -32,6 +32,7 @@ class KiCadSchematicRenderer {
     _drawJunctions(canvas, schematic.junctions);
     _drawSymbols(canvas, schematic.symbols, symbolRenderer);
     _drawGlobalLabels(canvas, schematic.globalLabels);
+    _drawLabels(canvas, schematic.labels);
   }
 
   void _drawWires(ui.Canvas canvas, List<Wire> wires) {
@@ -182,6 +183,46 @@ class KiCadSchematicRenderer {
       ); // KiCad rotation is in degrees
 
       _drawLabelShape(canvas, label, textPainter.width + spacing * 2);
+
+      canvas.restore();
+    }
+  }
+
+  void _drawLabels(ui.Canvas canvas, List<Label> labels) {
+    for (final label in labels) {
+      if (label.effects.hide) continue;
+
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: label.text,
+          style: TextStyle(
+            color: kicadLabelColor,
+            fontSize: label.effects.font.height,
+            fontWeight: FontWeight.normal,
+            fontStyle: FontStyle.normal,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+
+      textPainter.layout();
+      final spacing = 0.5; // Small spacing from the label shape
+
+      canvas.save();
+      canvas.translate(label.at.x, label.at.y);
+
+      textPainter.paint(
+        canvas,
+        Offset(
+          label.effects.justify == Justify.right
+              ? -textPainter.width - spacing
+              : spacing,
+          -label.effects.font.height / 2,
+        ),
+      );
+      canvas.rotate(
+        -label.at.angle * (3.14159 / 180),
+      ); // KiCad rotation is in degrees
 
       canvas.restore();
     }

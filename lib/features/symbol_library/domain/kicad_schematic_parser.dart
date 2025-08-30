@@ -52,6 +52,7 @@ final class KiCadSchematicParser {
     final busEntries = <BusEntry>[];
     final junctions = <Junction>[];
     final globalLabels = <GlobalLabel>[];
+    final labels = <Label>[];
 
     for (final element in expr.elements.skip(1)) {
       switch (element) {
@@ -105,6 +106,10 @@ final class KiCadSchematicParser {
           globalLabels.add(_parseGlobalLabel(labelElements));
           break;
 
+        case SList(elements: [SAtom(value: 'label'), ...final labelElements]):
+          labels.add(_parseLabel(labelElements));
+          break;
+
         default:
           break;
       }
@@ -121,6 +126,7 @@ final class KiCadSchematicParser {
       busEntries: busEntries,
       junctions: junctions,
       globalLabels: globalLabels,
+      labels: labels,
     );
   }
 
@@ -404,6 +410,47 @@ final class KiCadSchematicParser {
     return GlobalLabel(
       text: text,
       shape: shape,
+      at: at,
+      uuid: uuid,
+      effects: effects,
+    );
+  }
+
+  static Label _parseLabel(List<SExpr> elements) {
+    String text = '';
+    Position at = Position(0, 0, 0);
+    String uuid = '';
+    TextEffects effects = TextEffects(
+      font: Font(width: 1.27, height: 1.27),
+      justify: Justify.left,
+    );
+
+    // The first element is the text of the label
+    if (elements.first is SAtom) {
+      text = (elements.first as SAtom).value;
+    }
+
+    for (final element in elements.skip(1)) {
+      if (element is SList) {
+        switch (element.elements.first) {
+          case SAtom(value: 'at'):
+            at = Position(
+              double.parse((element.elements[1] as SAtom).value),
+              double.parse((element.elements[2] as SAtom).value),
+              double.parse((element.elements[3] as SAtom).value),
+            );
+          case SAtom(value: 'uuid'):
+            uuid = (element.elements[1] as SAtom).value;
+          case SAtom(value: 'effects'):
+            effects = KiCadParser.parseTextEffects(element.elements.sublist(1));
+          default:
+            break;
+        }
+      }
+    }
+
+    return Label(
+      text: text,
       at: at,
       uuid: uuid,
       effects: effects,

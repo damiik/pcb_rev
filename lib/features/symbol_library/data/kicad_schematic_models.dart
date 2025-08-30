@@ -14,6 +14,7 @@ final class KiCadSchematic {
   final List<BusEntry> busEntries;
   final List<Junction> junctions;
   final List<GlobalLabel> globalLabels;
+  final List<Label> labels;
 
   KiCadSchematic({
     required this.version,
@@ -26,6 +27,7 @@ final class KiCadSchematic {
     required this.busEntries,
     required this.junctions,
     required this.globalLabels,
+    required this.labels,
   });
 }
 
@@ -105,6 +107,20 @@ class GlobalLabel {
   GlobalLabel({
     required this.text,
     required this.shape,
+    required this.at,
+    required this.uuid,
+    required this.effects,
+  });
+}
+
+class Label {
+  final String text;
+  final Position at;
+  final String uuid;
+  final TextEffects effects;
+
+  Label({
+    required this.text,
     required this.at,
     required this.uuid,
     required this.effects,
