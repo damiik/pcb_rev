@@ -27,6 +27,7 @@ class KiCadSchematicRenderer {
     canvas.scale(kicadUnitToPx);
 
     _drawWires(canvas, schematic.wires);
+    _drawBuses(canvas, schematic.buses);
     _drawJunctions(canvas, schematic.junctions);
     _drawSymbols(canvas, schematic.symbols, symbolRenderer);
     _drawGlobalLabels(canvas, schematic.globalLabels);
@@ -51,6 +52,29 @@ class KiCadSchematicRenderer {
           ..strokeWidth = wire.stroke.width > 0
               ? wire.stroke.width
               : kicadStrokeWidth,
+      );
+    }
+  }
+
+  void _drawBuses(ui.Canvas canvas, List<Bus> buses) {
+    final paint = Paint()
+      ..color = kicadWireColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = kicadStrokeWidth * 3; // Thicker for buses
+
+    for (final bus in buses) {
+      if (bus.pts.length < 2) continue;
+      final path = Path();
+      path.moveTo(bus.pts.first.x, bus.pts.first.y);
+      for (var i = 1; i < bus.pts.length; i++) {
+        path.lineTo(bus.pts[i].x, bus.pts[i].y);
+      }
+      canvas.drawPath(
+        path,
+        paint
+          ..strokeWidth = bus.stroke.width > 0
+              ? bus.stroke.width
+              : kicadStrokeWidth * 3,
       );
     }
   }
@@ -144,7 +168,7 @@ class KiCadSchematicRenderer {
 
   void _drawLabelShape(ui.Canvas canvas, GlobalLabel label, double length) {
     final paint = Paint()
-      ..color = kicadLabelColor
+      ..color = const ui.Color(0xFFBA63BD)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.10;
 

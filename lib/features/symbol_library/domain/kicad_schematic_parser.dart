@@ -46,6 +46,7 @@ final class KiCadSchematicParser {
     KiCadLibrary? library;
     final symbols = <SymbolInstance>[];
     final wires = <Wire>[];
+    final buses = <Bus>[];
     final junctions = <Junction>[];
     final globalLabels = <GlobalLabel>[];
 
@@ -81,6 +82,10 @@ final class KiCadSchematicParser {
           wires.add(_parseWire(wireElements));
           break;
 
+        case SList(elements: [SAtom(value: 'bus'), ...final busElements]):
+          buses.add(_parseBus(busElements));
+          break;
+
         case SList(
           elements: [SAtom(value: 'junction'), ...final junctionElements],
         ):
@@ -105,6 +110,7 @@ final class KiCadSchematicParser {
       library: library,
       symbols: symbols,
       wires: wires,
+      buses: buses,
       junctions: junctions,
       globalLabels: globalLabels,
     );
@@ -222,6 +228,48 @@ final class KiCadSchematicParser {
     }
     // print('Parsed wire with points: $pts');
     return Wire(pts: pts, uuid: uuid, stroke: stroke);
+  }
+
+  static Bus _parseBus(List<SExpr> elements) {
+    // print('Parsing bus with elements: $elements');
+    List<Position> pts = [];
+    String uuid = '';
+    Stroke stroke = Stroke(width: 0);
+
+    for (final element in elements) {
+      switch (element) {
+        case SList(elements: [SAtom(value: 'pts'), ...final ptElements]):
+          for (final ptExpr in ptElements) {
+            if (ptExpr case SList(
+              elements: [
+                SAtom(value: 'xy'),
+                SAtom(value: final x),
+                SAtom(value: final y),
+              ],
+            )) {
+              pts.add(Position(double.parse(x), double.parse(y)));
+            }
+          }
+        case SList(
+          elements: [SAtom(value: 'uuid'), SAtom(value: final u), ...],
+        ):
+          uuid = u;
+        case SList(
+          elements: [
+            SAtom(value: 'stroke'),
+            SList(
+              elements: [SAtom(value: 'width'), SAtom(value: final w), ...],
+            ),
+            ...,
+          ],
+        ):
+          stroke = Stroke(width: double.parse(w));
+        default:
+          break;
+      }
+    }
+    // print('Parsed bus with points: $pts');
+    return Bus(pts: pts, uuid: uuid, stroke: stroke);
   }
 
   static Junction _parseJunction(List<SExpr> elements) {

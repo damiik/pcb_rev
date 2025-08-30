@@ -8,6 +8,7 @@ final class KiCadSchematic {
   final KiCadLibrary? library; // Embedded symbols
   final List<SymbolInstance> symbols;
   final List<Wire> wires;
+  final List<Bus> buses;
   final List<Junction> junctions;
   final List<GlobalLabel> globalLabels;
 
@@ -18,6 +19,7 @@ final class KiCadSchematic {
     this.library,
     required this.symbols,
     required this.wires,
+    required this.buses,
     required this.junctions,
     required this.globalLabels,
   });
@@ -55,6 +57,14 @@ final class Wire {
   final Stroke stroke;
 
   Wire({required this.pts, required this.uuid, required this.stroke});
+}
+
+final class Bus {
+  final List<Position> pts;
+  final String uuid;
+  final Stroke stroke;
+
+  Bus({required this.pts, required this.uuid, required this.stroke});
 }
 
 final class Junction {
