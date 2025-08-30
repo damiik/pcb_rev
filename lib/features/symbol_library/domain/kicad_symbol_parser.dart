@@ -582,6 +582,18 @@ final class KiCadParser {
           ],
         ):
           font = Font(width: double.parse(w), height: double.parse(h));
+
+        case SList(
+          elements: [
+            SAtom(value: 'justify'),
+            SAtom(value: final i),
+            SAtom(value: final j),
+            ...,
+          ],
+        ):
+          // print("Parse justify: $i, $j");
+          justify = parseJustify2(i, j);
+
         case SList(
           elements: [SAtom(value: 'justify'), SAtom(value: final j), ...],
         ):
@@ -644,4 +656,17 @@ final class KiCadParser {
     'bottom_right' => Justify.bottomRight,
     _ => Justify.left,
   };
+
+  static Justify parseJustify2(String justify, String justify2) =>
+      switch ([justify, justify2]) {
+        ['left', 'bottom'] => Justify.bottomLeft,
+        ['right', 'bottom'] => Justify.bottomRight,
+        ['center', 'bottom'] => Justify.bottom,
+        ['left', 'top'] => Justify.topLeft,
+        ['right', 'top'] => Justify.topRight,
+        ['center', 'top'] => Justify.top,
+        ['left', 'center'] => Justify.left,
+        ['right', 'center'] => Justify.right,
+        _ => Justify.left,
+      };
 }

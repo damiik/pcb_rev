@@ -90,7 +90,10 @@ class KiCadSchematicRenderer {
     for (final entry in busEntries) {
       final path = Path();
       path.moveTo(entry.at.x, entry.at.y);
-      path.lineTo(entry.at.x + entry.size.width, entry.at.y + entry.size.height);
+      path.lineTo(
+        entry.at.x + entry.size.width,
+        entry.at.y + entry.size.height,
+      );
       canvas.drawPath(
         path,
         paint
@@ -166,8 +169,18 @@ class KiCadSchematicRenderer {
       textPainter.layout();
       final spacing = 0.5; // Small spacing from the label shape
 
+      final angle = label.at.angle >= 90 && label.at.angle < 180
+          ? -90
+          : label.at.angle >= 180 && label.at.angle < 270
+          ? 0
+          : label.at.angle >= 270 && label.at.angle < 360
+          ? -90
+          : 0;
+
       canvas.save();
       canvas.translate(label.at.x, label.at.y);
+      canvas.save();
+      canvas.rotate(angle * (3.14159 / 180)); // KiCad rotation is in degrees
 
       textPainter.paint(
         canvas,
@@ -178,9 +191,8 @@ class KiCadSchematicRenderer {
           -label.effects.font.height / 2,
         ),
       );
-      canvas.rotate(
-        -label.at.angle * (3.14159 / 180),
-      ); // KiCad rotation is in degrees
+      canvas.restore();
+      canvas.rotate(-label.at.angle * (3.14159 / 180));
 
       _drawLabelShape(canvas, label, textPainter.width + spacing * 2);
 
@@ -207,22 +219,33 @@ class KiCadSchematicRenderer {
 
       textPainter.layout();
       final spacing = 0.5; // Small spacing from the label shape
+      final angle = label.at.angle >= 90 && label.at.angle < 180
+          ? -90
+          : label.at.angle >= 180 && label.at.angle < 270
+          ? 0
+          : label.at.angle >= 270 && label.at.angle < 360
+          ? -90
+          : 0;
 
       canvas.save();
       canvas.translate(label.at.x, label.at.y);
-
-      textPainter.paint(
-        canvas,
-        Offset(
-          label.effects.justify == Justify.right
-              ? -textPainter.width - spacing
-              : spacing,
-          -label.effects.font.height / 2,
+      canvas.rotate(angle * (3.14159 / 180)); // KiCad rotation is in degrees
+      final offset = switch (label.effects.justify) {
+        Justify.left => Offset(0, spacing),
+        Justify.center => Offset(-textPainter.width / 2, spacing),
+        Justify.right => Offset(-textPainter.width, spacing),
+        Justify.top => Offset(0, spacing),
+        Justify.bottom => Offset(0, -textPainter.height - spacing),
+        Justify.topLeft => Offset(0, 0),
+        Justify.topRight => Offset(-textPainter.width, spacing),
+        Justify.bottomLeft => Offset(0, -textPainter.height - spacing),
+        Justify.bottomRight => Offset(
+          -textPainter.width,
+          -textPainter.height - spacing,
         ),
-      );
-      canvas.rotate(
-        -label.at.angle * (3.14159 / 180),
-      ); // KiCad rotation is in degrees
+      };
+
+      textPainter.paint(canvas, offset);
 
       canvas.restore();
     }
