@@ -28,6 +28,7 @@ class KiCadSchematicRenderer {
 
     _drawWires(canvas, schematic.wires);
     _drawBuses(canvas, schematic.buses);
+    _drawBusEntries(canvas, schematic.busEntries);
     _drawJunctions(canvas, schematic.junctions);
     _drawSymbols(canvas, schematic.symbols, symbolRenderer);
     _drawGlobalLabels(canvas, schematic.globalLabels);
@@ -75,6 +76,26 @@ class KiCadSchematicRenderer {
           ..strokeWidth = bus.stroke.width > 0
               ? bus.stroke.width
               : kicadStrokeWidth * 3,
+      );
+    }
+  }
+
+  void _drawBusEntries(ui.Canvas canvas, List<BusEntry> busEntries) {
+    final paint = Paint()
+      ..color = kicadWireColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = kicadStrokeWidth;
+
+    for (final entry in busEntries) {
+      final path = Path();
+      path.moveTo(entry.at.x, entry.at.y);
+      path.lineTo(entry.at.x + entry.size.width, entry.at.y + entry.size.height);
+      canvas.drawPath(
+        path,
+        paint
+          ..strokeWidth = entry.stroke.width > 0
+              ? entry.stroke.width
+              : kicadStrokeWidth,
       );
     }
   }

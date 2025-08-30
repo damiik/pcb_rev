@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import '../data/kicad_schematic_models.dart';
 import '../data/kicad_symbol_models.dart';
 import 'kicad_tokenizer.dart';
@@ -47,6 +49,7 @@ final class KiCadSchematicParser {
     final symbols = <SymbolInstance>[];
     final wires = <Wire>[];
     final buses = <Bus>[];
+    final busEntries = <BusEntry>[];
     final junctions = <Junction>[];
     final globalLabels = <GlobalLabel>[];
 
@@ -86,6 +89,10 @@ final class KiCadSchematicParser {
           buses.add(_parseBus(busElements));
           break;
 
+        case SList(elements: [SAtom(value: 'bus_entry'), ...final busEntryElements]):
+          busEntries.add(_parseBusEntry(busEntryElements));
+          break;
+
         case SList(
           elements: [SAtom(value: 'junction'), ...final junctionElements],
         ):
@@ -111,6 +118,7 @@ final class KiCadSchematicParser {
       symbols: symbols,
       wires: wires,
       buses: buses,
+      busEntries: busEntries,
       junctions: junctions,
       globalLabels: globalLabels,
     );
@@ -270,6 +278,52 @@ final class KiCadSchematicParser {
     }
     // print('Parsed bus with points: $pts');
     return Bus(pts: pts, uuid: uuid, stroke: stroke);
+  }
+
+  static BusEntry _parseBusEntry(List<SExpr> elements) {
+    Position at = Position(0, 0);
+    Size size = Size(0, 0);
+    String uuid = '';
+    Stroke stroke = Stroke(width: 0);
+
+    for (final element in elements) {
+      switch (element) {
+        case SList(
+          elements: [
+            SAtom(value: 'at'),
+            SAtom(value: final x),
+            SAtom(value: final y),
+            ...,
+          ],
+        ):
+          at = Position(double.parse(x), double.parse(y));
+        case SList(
+          elements: [
+            SAtom(value: 'size'),
+            SAtom(value: final dx),
+            SAtom(value: final dy),
+          ],
+        ):
+          size = Size(double.parse(dx), double.parse(dy));
+        case SList(
+          elements: [SAtom(value: 'uuid'), SAtom(value: final u), ...],
+        ):
+          uuid = u;
+        case SList(
+          elements: [
+            SAtom(value: 'stroke'),
+            SList(
+              elements: [SAtom(value: 'width'), SAtom(value: final w), ...],
+            ),
+            ...,
+          ],
+        ):
+          stroke = Stroke(width: double.parse(w));
+        default:
+          break;
+      }
+    }
+    return BusEntry(at: at, size: size, uuid: uuid, stroke: stroke);
   }
 
   static Junction _parseJunction(List<SExpr> elements) {

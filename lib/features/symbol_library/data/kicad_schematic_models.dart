@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'kicad_symbol_models.dart';
 
 // A KiCad schematic (.kicad_sch) file model
@@ -9,6 +11,7 @@ final class KiCadSchematic {
   final List<SymbolInstance> symbols;
   final List<Wire> wires;
   final List<Bus> buses;
+  final List<BusEntry> busEntries;
   final List<Junction> junctions;
   final List<GlobalLabel> globalLabels;
 
@@ -20,6 +23,7 @@ final class KiCadSchematic {
     required this.symbols,
     required this.wires,
     required this.buses,
+    required this.busEntries,
     required this.junctions,
     required this.globalLabels,
   });
@@ -73,6 +77,20 @@ final class Junction {
   final double diameter;
 
   Junction({required this.at, required this.uuid, required this.diameter});
+}
+
+final class BusEntry {
+  final Position at;
+  final Size size;
+  final String uuid;
+  final Stroke stroke;
+
+  BusEntry({
+    required this.at,
+    required this.size,
+    required this.uuid,
+    required this.stroke,
+  });
 }
 
 enum LabelShape { input, output, bidirectional, triState, passive }
