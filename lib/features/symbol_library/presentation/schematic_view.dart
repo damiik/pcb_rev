@@ -47,6 +47,8 @@ class _SchematicViewState extends State<SchematicView> {
     final screenSize = context.size;
     if (screenSize == null) return;
 
+    final currentScale = _transformationController.value.getMaxScaleOnAxis();
+
     final schematicCenterPx = Offset(
       position.x * kicadUnitToPx,
       position.y * kicadUnitToPx,
@@ -54,10 +56,11 @@ class _SchematicViewState extends State<SchematicView> {
 
     final screenCenterPx = Offset(screenSize.width / 2, screenSize.height / 2);
 
-    final translation = screenCenterPx - schematicCenterPx;
+    final translation = screenCenterPx - (schematicCenterPx * currentScale);
 
     final matrix = Matrix4.identity()
-      ..translate(translation.dx, translation.dy);
+      ..translate(translation.dx, translation.dy)
+      ..scale(currentScale);
 
     _transformationController.value = matrix;
   }
