@@ -50,15 +50,17 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
   Widget build(BuildContext context) {
     final filteredComponents = _filterComponents(_query);
     final filteredNets = _filterNets(_query);
+    final filteredLibrarySymbols = _filterLibrarySymbols(_query);
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Column(
         children: [
           TabBar(
             tabs: [
               Tab(text: 'Components (${filteredComponents.length})'),
               Tab(text: 'Nets (${filteredNets.length})'),
+              Tab(text: 'Library (${filteredLibrarySymbols.length})'),
             ],
           ),
           Padding(
@@ -94,7 +96,8 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
             child: TabBarView(
               children: [
                 _buildComponentList(filteredComponents),
-                _buildNetList(filteredNets)
+                _buildNetList(filteredNets),
+                _buildLibrarySymbolList(filteredLibrarySymbols),
               ],
             ),
           ),
@@ -143,6 +146,15 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
         .toList();
   }
 
+  List<kicad_models.Symbol> _filterLibrarySymbols(String query) {
+    if (widget.schematic?.library?.symbols != null) {
+      return widget.schematic!.library!.symbols
+          .where((symbol) => symbol.name.toLowerCase().contains(query))
+          .toList();
+    }
+    return [];
+  }
+
   Widget _buildComponentList(List<LogicalComponent> components) {
     return ListView.builder(
       itemCount: components.length,
@@ -166,6 +178,21 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
           title: Text(net.name),
           subtitle: Text('${net.connections.length} connections'),
           onTap: () => widget.onNetSelected(net),
+        );
+      },
+    );
+  }
+
+  Widget _buildLibrarySymbolList(List<kicad_models.Symbol> symbols) {
+    return ListView.builder(
+      itemCount: symbols.length,
+      itemBuilder: (context, index) {
+        final symbol = symbols[index];
+        return ListTile(
+          title: Text(symbol.name),
+          onTap: () {
+            // TODO: Implement selection handling for library symbols
+          },
         );
       },
     );
