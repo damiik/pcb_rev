@@ -27,6 +27,8 @@ final class Symbol extends KiCadElement {
   final bool onBoard;
   final List<Property> properties;
   final List<SymbolUnit> units;
+  final bool excludeFromSim;
+  final bool embeddedFonts;
 
   Symbol({
     required this.name,
@@ -36,6 +38,8 @@ final class Symbol extends KiCadElement {
     required this.onBoard,
     required this.properties,
     required this.units,
+    this.excludeFromSim = false,
+    this.embeddedFonts = false,
   });
 
   @override
@@ -52,7 +56,6 @@ final class PinNames {
 final class Property extends KiCadElement {
   final String name;
   final String value;
-  final int id;
   final Position position;
   final TextEffects effects;
   final bool hidden;
@@ -60,7 +63,6 @@ final class Property extends KiCadElement {
   Property({
     required this.name,
     required this.value,
-    required this.id,
     required this.position,
     required this.effects,
     this.hidden = false,

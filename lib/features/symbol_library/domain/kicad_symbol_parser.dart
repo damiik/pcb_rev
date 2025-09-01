@@ -91,6 +91,8 @@ final class KiCadParser {
     var inBom = true;
     var onBoard = true;
     var hidePinNumbers = false;
+    var excludeFromSim = false;
+    var embeddedFonts = false;
     final properties = <Property>[];
     final units = <SymbolUnit>[];
 
@@ -126,6 +128,13 @@ final class KiCadParser {
         ):
           onBoard = v == 'yes';
 
+        case SList(
+            elements: [SAtom(value: 'exclude_from_sim'), SAtom(value: final v), ...]):
+          excludeFromSim = v == 'yes';
+
+        case SList(elements: [SAtom(value: 'embedded_fonts'), ...]):
+          embeddedFonts = true;
+
         case SList(elements: [SAtom(value: 'property'), ...final propElements]):
           properties.add(parseProperty(propElements));
 
@@ -151,13 +160,14 @@ final class KiCadParser {
       onBoard: onBoard,
       properties: properties,
       units: units,
+      excludeFromSim: excludeFromSim,
+      embeddedFonts: embeddedFonts,
     );
   }
 
   static Property parseProperty(List<SExpr> elements) {
     final name = (elements[0] as SAtom).value;
     final value = (elements[1] as SAtom).value;
-    var id = 0;
     var position = const Position(0, 0);
     var hidden = false;
     var effects = const TextEffects(
@@ -168,10 +178,6 @@ final class KiCadParser {
 
     for (final element in elements.skip(2)) {
       switch (element) {
-        case SList(
-          elements: [SAtom(value: 'id'), SAtom(value: final idVal), ...],
-        ):
-          id = int.parse(idVal);
         case SList(
           elements: [
             SAtom(value: 'at'),
@@ -200,7 +206,6 @@ final class KiCadParser {
     return Property(
       name: name,
       value: value,
-      id: id,
       position: position,
       effects: effects,
       hidden: hidden,
@@ -602,6 +607,9 @@ final class KiCadParser {
           justify = parseJustify(j);
 
         case SList(elements: [SAtom(value: 'hide'), SAtom(value: 'yes'), ...]):
+          hide = true;
+          break;
+        case SAtom(value: 'hide'): // Also handle the keyword form
           hide = true;
           break;
         default:

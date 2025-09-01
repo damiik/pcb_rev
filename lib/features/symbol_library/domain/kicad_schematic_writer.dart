@@ -87,6 +87,12 @@ String _generateLibrarySymbols(symbol_models.KiCadLibrary library) {
 String _generateSymbolDefinition(symbol_models.Symbol symbol) {
   final buffer = StringBuffer();
   buffer.writeln('    (symbol "${symbol.name}" (pin_names (offset ${symbol.pinNames.offset})) (in_bom ${symbol.inBom ? 'yes' : 'no'}) (on_board ${symbol.onBoard ? 'yes' : 'no'})');
+  if (symbol.excludeFromSim) {
+    buffer.writeln('      (exclude_from_sim yes)');
+  }
+  if (symbol.embeddedFonts) {
+    buffer.writeln('      (embedded_fonts yes)');
+  }
 
   for (final prop in symbol.properties) {
     buffer.write(_generateProperty(prop));
@@ -188,7 +194,14 @@ String _quote(String value) {
 
 String _generateSymbolInstance(SymbolInstance symbol) {
   final buffer = StringBuffer();
-  buffer.writeln('  (symbol (lib_id "${symbol.libId}") ${_generatePosition(symbol.at)} (unit ${symbol.unit})');
+  buffer.write('  (symbol (lib_id "${symbol.libId}") ${_generatePosition(symbol.at)} (unit ${symbol.unit})');
+  if (symbol.mirrorx) {
+    buffer.write(' (mirror x)');
+  }
+  if (symbol.mirrory) {
+    buffer.write(' (mirror y)');
+  }
+  buffer.writeln(); // Close the symbol line
   buffer.writeln('    (in_bom ${symbol.inBom ? 'yes' : 'no'}) (on_board ${symbol.onBoard ? 'yes' : 'no'}) (dnp ${symbol.dnp ? 'yes' : 'no'})');
   buffer.writeln('    (uuid ${symbol.uuid})');
 
@@ -204,7 +217,7 @@ String _generateSymbolInstance(SymbolInstance symbol) {
 
 String _generateProperty(symbol_models.Property prop) {
   final propertyValue = prop.value.contains('"') ? prop.value.replaceAll('"', '\\"') : prop.value;
-  return '''    (property "${prop.name}" "${propertyValue}" (id ${prop.id}) ${_generatePosition(prop.position)}
+  return '''    (property "${prop.name}" "${propertyValue}" ${_generatePosition(prop.position)}
       ${_generateTextEffects(prop.effects)}
     )
 ''';
@@ -269,10 +282,14 @@ String _generateStroke(symbol_models.Stroke stroke) {
 }
 
 String _generateTextEffects(symbol_models.TextEffects effects) {
-  final hide = effects.hide ? ' hide' : '';
-  return '(effects (font (size ${effects.font.width} ${effects.font.height})) $hide)';
-}
-String _generateTextEffects2(symbol_models.TextEffects effects) {
-  final hide = effects.hide ? ' (hide yes)' : '';
-  return '(effects (font (size ${effects.font.width} ${effects.font.height})) (justify ${justifyToString(effects.justify)}) $hide)';
+  final buffer = StringBuffer();
+  buffer.write('(effects (font (size ${effects.font.width} ${effects.font.height}))');
+  if (effects.justify != symbol_models.Justify.center) { // Assuming center is default and can be omitted
+      buffer.write(' (justify ${justifyToString(effects.justify)})');
+  }
+  if (effects.hide) {
+    buffer.write(' (hide yes)');
+  }
+  buffer.write(')');
+  return buffer.toString();
 }
