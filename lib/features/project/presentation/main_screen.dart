@@ -20,6 +20,8 @@ import '../../symbol_library/data/kicad_symbol_loader.dart';
 import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_models.dart'
     as kicad_symbol_models;
 import '../../symbol_library/presentation/schematic_view.dart';
+import '../../symbol_library/domain/kicad_schematic_writer.dart';
+
 
 enum ViewMode { pcb, schematic }
 
@@ -135,6 +137,11 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                 onPressed: _openProject,
               ),
               IconButton(icon: Icon(Icons.save), onPressed: _saveProject),
+              IconButton(
+                icon: Icon(Icons.save_as),
+                onPressed: _saveKiCadSchematic,
+                tooltip: 'Save KiCad Schematic',
+              ),
               IconButton(icon: Icon(Icons.share), onPressed: _exportNetlist),
             ],
           ),
@@ -459,5 +466,42 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     final netlist = generateNetlistFromProject(currentProject!);
     // Further export logic would go here
     print(netlist);
+  }
+
+  Future<void> _saveKiCadSchematic() async {
+    if (_loadedSchematic == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No schematic loaded to save.'),
+        ),
+      );
+      return;
+    }
+
+    String? outputFile = await FilePicker.platform.saveFile(
+      dialogTitle: 'Please select where to save the schematic:',
+      fileName: 'schematic.kicad_sch',
+      allowedExtensions: ['kicad_sch'],
+    );
+
+    if (outputFile != null) {
+      try {
+        final content = generateKiCadSchematicFileContent(_loadedSchematic!);
+        final file = File(outputFile);
+        await file.writeAsString(content);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Schematic saved successfully to $outputFile'),
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving schematic: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
