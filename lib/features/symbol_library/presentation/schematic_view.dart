@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:vector_math/vector_math_64.dart' hide Colors;
 import '../data/kicad_schematic_models.dart';
 import '../data/kicad_symbol_models.dart';
 import 'kicad_schematic_renderer.dart';
+import 'kicad_symbol_renderer.dart';
 
 class SchematicView extends StatefulWidget {
   final KiCadSchematic schematic;
   final Position? centerOn;
   final String? selectedSymbolId;
+  final void Function(SymbolInstance)? onSymbolSelected;
 
   const SchematicView(
       {Key? key,
       required this.schematic,
       this.centerOn,
-      this.selectedSymbolId})
+      this.selectedSymbolId,
+      this.onSymbolSelected})
       : super(key: key);
 
   @override
@@ -81,6 +85,35 @@ class _SchematicViewState extends State<SchematicView> {
     });
   }
 
+  void _handleTap(TapUpDetails details) {
+    if (_symbolCache == null) return;
+
+    final localPosition = details.localPosition;
+    final localPositionVector = Vector4(localPosition.dx, localPosition.dy, 0, 1);
+    final transformedPoint = Matrix4.inverted(_transformationController.value).transform(localPositionVector);
+    final tapPosition = Offset(transformedPoint.x / kicadUnitToPx, transformedPoint.y / kicadUnitToPx);
+
+    final renderer = KiCadSymbolRenderer();
+
+    for (final symbolInstance in widget.schematic.symbols) {
+      final symbol = _symbolCache![symbolInstance.libId];
+      if (symbol != null) {
+        final bounds = renderer.getSymbolBounds(symbol);
+        final symbolRect = Rect.fromLTWH(
+          symbolInstance.at.x + bounds.left,
+          symbolInstance.at.y - bounds.bottom, // Y is inverted in symbol space
+          bounds.width,
+          bounds.height,
+        );
+
+        if (symbolRect.contains(tapPosition)) {
+          widget.onSymbolSelected?.call(symbolInstance);
+          return; // Stop after finding the first symbol
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_symbolCache == null) {
@@ -93,12 +126,15 @@ class _SchematicViewState extends State<SchematicView> {
       boundaryMargin: EdgeInsets.all(double.infinity),
       minScale: 0.1,
       maxScale: 10.0,
-      child: CustomPaint(
-        size: Size(2000, 1500), // A large canvas for the schematic
-        painter: _SchematicPainter(
-          schematic: widget.schematic,
-          symbolCache: _symbolCache!,
-          selectedSymbolId: widget.selectedSymbolId,
+      child: GestureDetector(
+        onTapUp: _handleTap,
+        child: CustomPaint(
+          size: Size(2000, 1500), // A large canvas for the schematic
+          painter: _SchematicPainter(
+            schematic: widget.schematic,
+            symbolCache: _symbolCache!,
+            selectedSymbolId: widget.selectedSymbolId,
+          ),
         ),
       ),
     );
@@ -129,8 +165,8 @@ class _SchematicPainter extends CustomPainter {
       Paint()..color = Colors.grey[850]!,
     );
 
-    final renderer = KiCadSchematicRenderer(symbolCache, selectedSymbolId: selectedSymbolId);
-    renderer.render(canvas, size, schematic);
+    final schematicRenderer = KiCadSchematicRenderer(symbolCache, selectedSymbolId: selectedSymbolId);
+    schematicRenderer.render(canvas, size, schematic);
   }
 
   @override

@@ -43,6 +43,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   KiCadSymbolLoader? _symbolLoader;
   kicad_symbol_models.Position? _centerOnPosition;
   String? _selectedSymbolId;
+  SymbolInstance? _selectedSymbol;
 
   @override
   void initState() {
@@ -165,8 +166,10 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                   Expanded(
                     flex: 1,
                     child: PropertiesPanel(
+                      selectedSymbol: _selectedSymbol,
                       measurementState: measurementState,
                       onMeasurementAdded: _addMeasurement,
+                      onPropertyUpdated: _updateSymbolProperty,
                     ),
                   ),
                 ],
@@ -197,6 +200,12 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
             schematic: _loadedSchematic!,
             centerOn: _centerOnPosition,
             selectedSymbolId: _selectedSymbolId,
+            onSymbolSelected: (symbol) {
+              setState(() {
+                _selectedSymbol = symbol;
+                _selectedSymbolId = symbol.uuid;
+              });
+            },
           );
         } else {
           return Center(
@@ -299,9 +308,11 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     }
 
     if (foundSymbol != null) {
+      final symbol = foundSymbol;
       setState(() {
-        _centerOnPosition = foundSymbol!.at;
-        _selectedSymbolId = foundSymbol!.uuid;
+        _selectedSymbol = symbol;
+        _centerOnPosition = symbol.at;
+        _selectedSymbolId = symbol.uuid;
         _currentView = ViewMode.schematic;
       });
     }
@@ -323,6 +334,20 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     setState(() {
       // Logic to handle net selection in the UI
     });
+  }
+
+  void _updateSymbolProperty(SymbolInstance symbol, kicad_symbol_models.Property updatedProperty) {
+    if (_loadedSchematic == null) return;
+
+    final symbolIndex = _loadedSchematic!.symbols.indexWhere((s) => s.uuid == symbol.uuid);
+    if (symbolIndex != -1) {
+      final propertyIndex = _loadedSchematic!.symbols[symbolIndex].properties.indexWhere((p) => p.name == updatedProperty.name);
+      if (propertyIndex != -1) {
+        setState(() {
+          _loadedSchematic!.symbols[symbolIndex].properties[propertyIndex] = updatedProperty;
+        });
+      }
+    }
   }
 
   Future<void> _handleImageDrop(List<String> imagePaths) async {

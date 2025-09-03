@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_models.dart';
+import '../../../features/symbol_library/data/kicad_symbol_models.dart' as kicad_models;
 import '../data/measurement_service.dart';
 
 class PropertiesPanel extends StatelessWidget {
   final MeasurementState measurementState;
   final Function(String, dynamic) onMeasurementAdded;
+  final SymbolInstance? selectedSymbol;
+  final Function(SymbolInstance, kicad_models.Property)? onPropertyUpdated;
 
   PropertiesPanel({
     required this.measurementState,
     required this.onMeasurementAdded,
+    this.selectedSymbol,
+    this.onPropertyUpdated,
   });
 
   @override
@@ -50,6 +56,11 @@ class PropertiesPanel extends StatelessWidget {
           Divider(height: 32),
 
           // Display recent measurements
+          if (selectedSymbol != null) ...[
+            Divider(height: 32),
+            Text('Properties', style: Theme.of(context).textTheme.headlineSmall),
+            ..._buildPropertyFields(selectedSymbol!),
+          ],
           Expanded(
             child: ListView(
               children: [
@@ -109,6 +120,31 @@ class PropertiesPanel extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  List<Widget> _buildPropertyFields(SymbolInstance symbol) {
+    return symbol.properties.map((prop) {
+      final controller = TextEditingController(text: prop.value);
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            labelText: prop.name,
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (newValue) {
+            final updatedProperty = kicad_models.Property(
+              name: prop.name,
+              value: newValue,
+              position: prop.position,
+              effects: prop.effects,
+            );
+            onPropertyUpdated?.call(symbol, updatedProperty);
+          },
+        ),
+      );
+    }).toList();
   }
 
   void _showComponentDialog(BuildContext context) {

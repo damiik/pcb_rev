@@ -116,21 +116,22 @@ Do reprezentacji schematu, komponentów (jako referencji do symboli) oraz połą
         ```
     - Taki podział pozwala na elastyczność: ta sama logiczna sieć `VCC` może być inaczej narysowana na schemacie, a inaczej reprezentowana jako adnotacja na zdjęciu PCB. Użytkownik może dodawać komponenty i sieci z globalnej listy do dowolnego widoku, a ich pozycja i wygląd będą zapisane lokalnie dla tego widoku, nie wpływając na inne.
 
+### 3.4. Zarządzanie Symbolami KiCad
+
+Kluczowym elementem aplikacji jest zdolność do pracy z formatem KiCad, co jest realizowane przez moduł `symbol_library`. Moduł ten odpowiada za cały proces: od wczytania plików `.kicad_sym` (biblioteki symboli) i `.kicad_sch` (schematy), aż po ich renderowanie na ekranie. Proces ten jest podzielony na kilka etapów:
+
+1.  **Tokenizacja (`kicad_tokenizer.dart`):** Plik wejściowy jest najpierw dzielony na listę podstawowych tokenów (nawiasy, stringi, liczby).
+2.  **Parsowanie S-wyrażeń (`kicad_sexpr_parser.dart`):** Strumień tokenów jest przekształcany w drzewo S-wyrażeń (S-Expressions), które jest podstawową strukturą danych w plikach KiCad.
+3.  **Parsowanie Logiczne (`kicad_symbol_parser.dart`, `kicad_schematic_parser.dart`):** Drzewo S-wyrażeń jest analizowane, a jego zawartość jest mapowana na niezmienne rekordy zdefiniowane w `kicad_symbol_models.dart` i `kicad_schematic_models.dart`. Te rekordy reprezentują logiczną strukturę symboli (grafika, piny) i schematów (symbole, przewody, nety).
+4.  **Renderowanie (`kicad_symbol_renderer.dart`, `kicad_schematic_renderer.dart`):** Na podstawie modeli danych (rekordów), wyspecjalizowane renderery (oparte na `CustomPainter`) rysują symbole i cały schemat na płótnie (canvas) w interfejsie użytkownika.
+
+Dzięki takiemu podejściu, aplikacja może nie tylko wyświetlać istniejące schematy KiCad, ale również wykorzystywać te same struktury do tworzenia nowych schematów od zera.
+
 ## 4. Szczegóły Implementacji (Aktualny Stan)
 
 Projekt jest w fazie aktywnego rozwoju, a poniżej przedstawiono kluczowe aspekty obecnej implementacji.
 
-### 4.2. Interfejs Użytkownika (UI)
 
-Interfejs użytkownika jest zbudowany z komponentów Flutter i podzielony na mniejsze, reużywalne widżety:
-
-- **`main_screen.dart`**: Główny ekran aplikacji, agregujący pozostałe panele.
-- **`global_list_panel.dart`**: Panel wyświetlający listy komponentów i sieci.
-- **`pcb_viewer_panel.dart`**: Centralny panel do wyświetlania obrazów PCB, obsługujący przeciąganie i upuszczanie plików, nawigację między obrazami oraz kontrolki do ich modyfikacji.
-- **`properties_panel.dart`**: Panel boczny do wyświetlania właściwości i zarządzania pomiarami.
-- **`schematic_painter.dart`**: Widget odpowiedzialny za rysowanie schematu.
-- **`wire_painter.dart`**: Widget odpowiedzialny za rysowanie połączeń na schemacie.
-- **`component_painters.dart`**: Zestaw funkcji do rysowania symboli komponentów.
 
 ### 4.1. Struktura Projektu
 
@@ -163,7 +164,6 @@ pcb_rev/
 ├── README.md
 ... (pozostałe pliki projektu Flutter)
 ```
-
 ### 4.2. Interfejs Użytkownika (UI)
 
 Interfejs użytkownika jest zbudowany z reużywalnych widżetów:
