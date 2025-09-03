@@ -7,19 +7,19 @@ sealed class KiCadElement {}
 final class KiCadLibrary extends KiCadElement {
   final String version;
   final String generator;
-  final List<Symbol> symbols;
+  final List<LibrarySymbol> librarySymbols;
 
   KiCadLibrary({
     required this.version,
     required this.generator,
-    required this.symbols,
+    required this.librarySymbols,
   });
 
   @override
-  String toString() => 'KiCadLibrary(v$version, ${symbols.length} symbols)';
+  String toString() => 'KiCadLibrary(v$version, ${librarySymbols.length} symbols)';
 }
 
-final class Symbol extends KiCadElement {
+final class LibrarySymbol extends KiCadElement {
   final String name;
   final PinNames pinNames;
   final bool inBom;
@@ -30,7 +30,7 @@ final class Symbol extends KiCadElement {
   final bool excludeFromSim;
   final bool embeddedFonts;
 
-  Symbol({
+  LibrarySymbol({
     required this.name,
     required this.pinNames,
     required this.inBom,
@@ -44,7 +44,7 @@ final class Symbol extends KiCadElement {
 
   @override
   String toString() =>
-      'Symbol($name, ${properties.length} props, ${units.length} units)';
+      'LibrarySymbol($name, ${properties.length} props, ${units.length} units)';
 }
 
 final class PinNames {

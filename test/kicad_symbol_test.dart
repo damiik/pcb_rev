@@ -4,12 +4,12 @@ import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_loader.dart';
 void main() {
   group('KiCad Symbol Library Tests', () {
     test('KiCad Parser can parse existing project file', () async {
-      final loader = KiCadSymbolLoader(
+      final loader = KiCadLibrarySymbolLoader(
         'lib/features/symbol_library/data/example_kicad_symbols.kicad_sym',
       );
 
       // Test parsing the example KiCad symbols file
-      final symbols = await loader.loadAllSymbols();
+      final symbols = await loader.loadAllLibrarySymbols();
 
       expect(symbols, isNotEmpty);
 
@@ -39,12 +39,12 @@ void main() {
     });
 
     test('KiCad Symbol Loader can load individual symbols', () async {
-      final loader = KiCadSymbolLoader(
+      final loader = KiCadLibrarySymbolLoader(
         'lib/features/symbol_library/data/example_kicad_symbols.kicad_sym',
       );
 
       // Test loading a specific symbol
-      final symbol = await loader.loadSymbol('R');
+      final symbol = await loader.loadLibrarySymbol('R');
       expect(symbol, isNotNull);
     });
   });

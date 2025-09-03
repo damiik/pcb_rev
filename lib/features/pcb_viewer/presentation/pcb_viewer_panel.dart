@@ -16,7 +16,7 @@ class PCBViewerPanel extends StatefulWidget {
   final VoidCallback onPrevious;
   final Function(ImageModification) onImageModification;
   final Function(Offset)? onTap;
-  final KiCadSymbolLoader? symbolLoader;
+  final KiCadLibrarySymbolLoader? symbolLoader;
 
   PCBViewerPanel({
     this.project,

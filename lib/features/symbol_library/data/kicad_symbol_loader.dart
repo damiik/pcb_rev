@@ -3,25 +3,25 @@ import 'kicad_symbol_models.dart';
 import '../domain/kicad_symbol_parser.dart';
 
 /// Service for loading and caching KiCad symbol definitions
-class KiCadSymbolLoader {
-  final Map<String, Symbol> _symbolCache = {};
+class KiCadLibrarySymbolLoader {
+  final Map<String, LibrarySymbol> _symbolCache = {};
   final String? _libraryPath;
   KiCadLibrary? _library;
 
   /// Create a loader from a file path.
-  KiCadSymbolLoader(this._libraryPath) : _library = null;
+  KiCadLibrarySymbolLoader(this._libraryPath) : _library = null;
 
   /// Create a loader from an already parsed library.
-  KiCadSymbolLoader.fromLibrary(KiCadLibrary library)
+  KiCadLibrarySymbolLoader.fromLibrary(KiCadLibrary library)
     : _library = library,
       _libraryPath = null {
-    for (final symbol in library.symbols) {
+    for (final symbol in library.librarySymbols) {
       _symbolCache[symbol.name] = symbol;
     }
   }
 
   /// Load a specific symbol by name
-  Future<Symbol> loadSymbol(String symbolName) async {
+  Future<LibrarySymbol> loadLibrarySymbol(String symbolName) async {
     // Check cache first
     if (_symbolCache.containsKey(symbolName)) {
       return _symbolCache[symbolName]!;
@@ -31,10 +31,10 @@ class KiCadSymbolLoader {
     final library = await _loadLibrary();
 
     // Find the symbol
-    final symbol = library.symbols.firstWhere(
+    final symbol = library.librarySymbols.firstWhere(
       (symbol) => symbol.name == symbolName,
       orElse: () =>
-          throw Exception('Symbol "$symbolName" not found in library'),
+          throw Exception('Library symbol "$symbolName" not found in library'),
     );
 
     // Cache and return
@@ -43,7 +43,7 @@ class KiCadSymbolLoader {
   }
 
   /// Load all symbols from the library
-  Future<Map<String, Symbol>> loadAllSymbols() async {
+  Future<Map<String, LibrarySymbol>> loadAllLibrarySymbols() async {
     if (_symbolCache.isNotEmpty) {
       return _symbolCache;
     }
@@ -51,7 +51,7 @@ class KiCadSymbolLoader {
     final library = await _loadLibrary();
 
     // Cache all symbols
-    for (final symbol in library.symbols) {
+    for (final symbol in library.librarySymbols) {
       print('Default symbol library - Caching symbol: ${symbol.name}');
       _symbolCache[symbol.name] = symbol;
     }

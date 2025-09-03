@@ -22,10 +22,10 @@ double calcSafeAngleRad(double angle) => angle >= 90 && angle < 180
 
 /// Renderer for a full KiCad schematic.
 class KiCadSchematicRenderer {
-  final Map<String, Symbol> _symbolCache;
-  final String? selectedSymbolId;
+  final Map<String, LibrarySymbol> _symbolCache;
+  final String? selectedSymbolInstanceId;
 
-  KiCadSchematicRenderer(this._symbolCache, {this.selectedSymbolId});
+  KiCadSchematicRenderer(this._symbolCache, {this.selectedSymbolInstanceId});
 
   /// Renders the entire schematic onto a canvas.
   void render(ui.Canvas canvas, ui.Size size, KiCadSchematic schematic) {
@@ -40,7 +40,7 @@ class KiCadSchematicRenderer {
     _drawBuses(canvas, schematic.buses);
     _drawBusEntries(canvas, schematic.busEntries);
     _drawJunctions(canvas, schematic.junctions);
-    _drawSymbols(canvas, schematic.symbols, symbolRenderer);
+    _drawSymbols(canvas, schematic.symbolInstances, symbolRenderer);
     _drawGlobalLabels(canvas, schematic.globalLabels);
     _drawLabels(canvas, schematic.labels);
   }
@@ -127,7 +127,7 @@ class KiCadSchematicRenderer {
 
   void _drawSymbols(
     ui.Canvas canvas,
-    List<SymbolInstance> symbols,
+    List<SymbolInstance> symbolInstances,
     KiCadSymbolRenderer symbolRenderer,
   ) {
     final paint = Paint()
@@ -148,18 +148,18 @@ class KiCadSchematicRenderer {
       ..color = kicadHighlightColor.withOpacity(0.5)
       ..style = PaintingStyle.fill;
 
-    for (final symbolInstance in symbols) {
-      final symbol = _symbolCache[symbolInstance.libId];
-      if (symbol == null) {
-        print('Symbol not found in cache: ${symbolInstance.libId}');
+    for (final symbolInstance in symbolInstances) {
+      final librarySymbolCache = _symbolCache[symbolInstance.libId];
+      if (librarySymbolCache == null) {
+        print('Library symbol not found in cache: ${symbolInstance.libId} for SymbolInstance(${symbolInstance.uuid})');
         continue;
       }
 
-      final bool isSelected = symbolInstance.uuid == selectedSymbolId;
+      final bool isSelected = symbolInstance.uuid == selectedSymbolInstanceId;
 
       symbolRenderer.renderSymbol(
         canvas,
-        symbol,
+        librarySymbolCache,
         symbolInstance,
         isSelected ? highlightPaint : paint,
         isSelected ? highlightFillPaint : fillPaint,

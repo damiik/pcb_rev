@@ -6,13 +6,13 @@ import '../data/measurement_service.dart';
 class PropertiesPanel extends StatelessWidget {
   final MeasurementState measurementState;
   final Function(String, dynamic) onMeasurementAdded;
-  final SymbolInstance? selectedSymbol;
+  final SymbolInstance? selectedSymbolInstance;
   final Function(SymbolInstance, kicad_models.Property)? onPropertyUpdated;
 
   PropertiesPanel({
     required this.measurementState,
     required this.onMeasurementAdded,
-    this.selectedSymbol,
+    this.selectedSymbolInstance,
     this.onPropertyUpdated,
   });
 
@@ -56,10 +56,10 @@ class PropertiesPanel extends StatelessWidget {
           Divider(height: 32),
 
           // Display recent measurements
-          if (selectedSymbol != null) ...[
+          if (selectedSymbolInstance != null) ...[
             Divider(height: 32),
             Text('Properties', style: Theme.of(context).textTheme.headlineSmall),
-            ..._buildPropertyFields(selectedSymbol!),
+            ..._buildPropertyFields(selectedSymbolInstance!),
           ],
           Expanded(
             child: ListView(
@@ -122,8 +122,8 @@ class PropertiesPanel extends StatelessWidget {
     );
   }
 
-  List<Widget> _buildPropertyFields(SymbolInstance symbol) {
-    return symbol.properties.map((prop) {
+  List<Widget> _buildPropertyFields(SymbolInstance symbolInstance) {
+    return symbolInstance.properties.map((prop) {
       final controller = TextEditingController(text: prop.value);
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -140,7 +140,7 @@ class PropertiesPanel extends StatelessWidget {
               position: prop.position,
               effects: prop.effects,
             );
-            onPropertyUpdated?.call(symbol, updatedProperty);
+            onPropertyUpdated?.call(symbolInstance, updatedProperty);
           },
         ),
       );

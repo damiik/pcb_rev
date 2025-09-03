@@ -41,8 +41,8 @@ String generateKiCadSchematicFileContent(KiCadSchematic schematic) {
     buffer.write(_generateLibrarySymbols(schematic.library!));
   }
 
-  for (final symbol in schematic.symbols) {
-    buffer.write(_generateSymbolInstance(symbol));
+  for (final instance in schematic.symbolInstances  ) {
+    buffer.write(_generateSymbolInstance(instance));
   }
 
   for (final wire in schematic.wires) {
@@ -77,14 +77,14 @@ String generateKiCadSchematicFileContent(KiCadSchematic schematic) {
 String _generateLibrarySymbols(symbol_models.KiCadLibrary library) {
   final buffer = StringBuffer();
   buffer.writeln('  (lib_symbols');
-  for (final symbol in library.symbols) {
+  for (final symbol in library.librarySymbols ) {
     buffer.write(_generateSymbolDefinition(symbol));
   }
   buffer.writeln('  )');
   return buffer.toString();
 }
 
-String _generateSymbolDefinition(symbol_models.Symbol symbol) {
+String _generateSymbolDefinition(symbol_models.LibrarySymbol symbol) {
   final buffer = StringBuffer();
   buffer.writeln('    (symbol "${symbol.name}" (pin_names (offset ${symbol.pinNames.offset})) (in_bom ${symbol.inBom ? 'yes' : 'no'}) (on_board ${symbol.onBoard ? 'yes' : 'no'})');
   if (symbol.excludeFromSim) {
@@ -210,6 +210,7 @@ String _generateSymbolInstance(SymbolInstance symbol) {
   }
 
   // TODO: Add pin mappings if necessary, as the data model does not currently support them.
+  // TODO: Add symbol instance mappings (now there is missing instance name in schematic)
 
   buffer.writeln('  )');
   return buffer.toString();

@@ -53,7 +53,7 @@ final class KiCadParser {
   static KiCadLibrary parseLibraryExpr(SList expr) {
     var version = '20211014';
     var generator = 'unknown';
-    final symbols = <Symbol>[];
+    final librarySymbols = <LibrarySymbol>[];
 
     for (final element in expr.elements.skip(1)) {
       switch (element) {
@@ -72,8 +72,8 @@ final class KiCadParser {
             ...final rest,
           ],
         ):
-          var symbol = parseSymbol(name, rest);
-          symbols.add(symbol);
+          var symbol = parseLibrarySymbol(name, rest);
+          librarySymbols.add(symbol);
         default:
           break;
       }
@@ -82,11 +82,11 @@ final class KiCadParser {
     return KiCadLibrary(
       version: version,
       generator: generator,
-      symbols: symbols,
+      librarySymbols: librarySymbols,
     );
   }
 
-  static Symbol parseSymbol(String name, List<SExpr> elements) {
+  static LibrarySymbol parseLibrarySymbol(String name, List<SExpr> elements) {
     var pinNames = const PinNames(offset: 1.016);
     var inBom = true;
     var onBoard = true;
@@ -152,7 +152,7 @@ final class KiCadParser {
       }
     }
 
-    return Symbol(
+    return LibrarySymbol(
       name: name,
       pinNames: pinNames,
       inBom: inBom,

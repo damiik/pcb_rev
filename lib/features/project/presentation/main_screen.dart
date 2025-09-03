@@ -40,10 +40,10 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       measurement_service.createInitialMeasurementState();
   bool _dragging = false;
   KiCadSchematic? _loadedSchematic;
-  KiCadSymbolLoader? _symbolLoader;
+  KiCadLibrarySymbolLoader? _symbolLoader;
   kicad_symbol_models.Position? _centerOnPosition;
-  String? _selectedSymbolId;
-  SymbolInstance? _selectedSymbol;
+  String? _selectedSymbolInstanceId;
+  SymbolInstance? _selectedSymbolInstance;
 
   @override
   void initState() {
@@ -70,7 +70,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void _loadDefaultSymbolLibrary() async {
     try {
       final libraryPath = 'test/kiProject1/example_kicad_symbols.kicad_sym';
-      final loader = KiCadSymbolLoader(libraryPath);
+      final loader = KiCadLibrarySymbolLoader(libraryPath);
       setState(() {
         _symbolLoader = loader;
       });
@@ -166,7 +166,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                   Expanded(
                     flex: 1,
                     child: PropertiesPanel(
-                      selectedSymbol: _selectedSymbol,
+                      selectedSymbolInstance: _selectedSymbolInstance,
                       measurementState: measurementState,
                       onMeasurementAdded: _addMeasurement,
                       onPropertyUpdated: _updateSymbolProperty,
@@ -199,11 +199,11 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
           return SchematicView(
             schematic: _loadedSchematic!,
             centerOn: _centerOnPosition,
-            selectedSymbolId: _selectedSymbolId,
-            onSymbolSelected: (symbol) {
+            selectedSymbolInstanceId: _selectedSymbolInstanceId,
+            onSymbolInstanceSelected: (symbolInstance) {
               setState(() {
-                _selectedSymbol = symbol;
-                _selectedSymbolId = symbol.uuid;
+                _selectedSymbolInstance = symbolInstance;
+                _selectedSymbolInstanceId = symbolInstance.uuid;
               });
             },
           );
@@ -298,21 +298,21 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void _selectComponent(LogicalComponent component) {
     if (_loadedSchematic == null) return;
 
-    SymbolInstance? foundSymbol;
-    for (final symbol in _loadedSchematic!.symbols) {
-      final reference = _getPropertyValue(symbol.properties, 'Reference');
+    SymbolInstance? foundSymbolInstance;
+    for (final symbolInstance in _loadedSchematic!.symbolInstances) {
+      final reference = _getPropertyValue(symbolInstance.properties, 'Reference');
       if (reference == component.id) {
-        foundSymbol = symbol;
+        foundSymbolInstance = symbolInstance;
         break;
       }
     }
 
-    if (foundSymbol != null) {
-      final symbol = foundSymbol;
+    if (foundSymbolInstance != null) {
+      final symbolInstance = foundSymbolInstance;
       setState(() {
-        _selectedSymbol = symbol;
-        _centerOnPosition = symbol.at;
-        _selectedSymbolId = symbol.uuid;
+        _selectedSymbolInstance = symbolInstance;
+        _centerOnPosition = symbolInstance.at;
+        _selectedSymbolInstanceId = symbolInstance.uuid;
         _currentView = ViewMode.schematic;
       });
     }
@@ -339,12 +339,12 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void _updateSymbolProperty(SymbolInstance symbol, kicad_symbol_models.Property updatedProperty) {
     if (_loadedSchematic == null) return;
 
-    final symbolIndex = _loadedSchematic!.symbols.indexWhere((s) => s.uuid == symbol.uuid);
+    final symbolIndex = _loadedSchematic!.symbolInstances.indexWhere((s) => s.uuid == symbol.uuid);
     if (symbolIndex != -1) {
-      final propertyIndex = _loadedSchematic!.symbols[symbolIndex].properties.indexWhere((p) => p.name == updatedProperty.name);
+      final propertyIndex = _loadedSchematic!.symbolInstances[symbolIndex].properties.indexWhere((p) => p.name == updatedProperty.name);
       if (propertyIndex != -1) {
         setState(() {
-          _loadedSchematic!.symbols[symbolIndex].properties[propertyIndex] = updatedProperty;
+          _loadedSchematic!.symbolInstances[symbolIndex].properties[propertyIndex] = updatedProperty;
         });
       }
     }

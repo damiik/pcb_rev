@@ -41,9 +41,9 @@ void main() async {
       print('Library parsed successfully:');
       print('  Version: ${library.version}');
       print('  Generator: ${library.generator}');
-      print('  Symbols count: ${library.symbols.length}');
-      for (final symbol in library.symbols) {
-        print('  Symbol: ${symbol.name} with ${symbol.units.length} units');
+      print('  Symbols count: ${library.librarySymbols.length}');
+      for (final symbol in library.librarySymbols) {
+        print('Library Symbol: ${symbol.name} with ${symbol.units.length} units');
       }
     },
     (error) {

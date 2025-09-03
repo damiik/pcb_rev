@@ -17,7 +17,7 @@ class KiCadSymbolRenderer {
   /// Render a KiCad symbol on the canvas
   void renderSymbol(
     ui.Canvas canvas,
-    Symbol symbol,
+    LibrarySymbol symbol,
     SymbolInstance symbolInstance,
     Paint paint,
     Paint fillPaint, {
@@ -622,7 +622,7 @@ class KiCadSymbolRenderer {
 
   /// Get connection points for a symbol (used for wire routing)
   List<Offset> getConnectionPoints(
-    Symbol symbol,
+    LibrarySymbol symbol,
     Offset position,
     double rotation,
   ) {
@@ -653,7 +653,7 @@ class KiCadSymbolRenderer {
   }
 
   /// Get the bounding box of a symbol
-  Rect getSymbolBounds(Symbol symbol) {
+  Rect getSymbolBounds(LibrarySymbol symbol) {
     double minX = double.infinity, maxX = double.negativeInfinity;
     double minY = double.infinity, maxY = double.negativeInfinity;
 

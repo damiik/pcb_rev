@@ -107,18 +107,18 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
   }
 
   List<LogicalComponent> _filterComponents(String query) {
-    if (widget.schematic != null && widget.schematic!.symbols.isNotEmpty) {
-      return widget.schematic!.symbols
-          .map((symbol) {
+    if (widget.schematic != null && widget.schematic!.symbolInstances.isNotEmpty) {
+      return widget.schematic!.symbolInstances
+          .map((symbolInstance) {
             final reference =
-                _getPropertyValue(symbol.properties, 'Reference') ?? '';
-            final value = _getPropertyValue(symbol.properties, 'Value') ?? '';
+                _getPropertyValue(symbolInstance.properties, 'Reference') ?? '';
+            final value = _getPropertyValue(symbolInstance.properties, 'Value') ?? '';
             final partNumber =
-                _getPropertyValue(symbol.properties, 'Footprint') ?? '';
+                _getPropertyValue(symbolInstance.properties, 'Footprint') ?? '';
 
             return (
               id: reference,
-              type: symbol.libId,
+              type: symbolInstance.libId,
               variant: null,
               value: value,
               partNumber: partNumber,
@@ -146,9 +146,9 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
         .toList();
   }
 
-  List<kicad_models.Symbol> _filterLibrarySymbols(String query) {
-    if (widget.schematic?.library?.symbols != null) {
-      return widget.schematic!.library!.symbols
+  List<kicad_models.LibrarySymbol> _filterLibrarySymbols(String query) {
+    if (widget.schematic?.library?.librarySymbols != null) {
+      return widget.schematic!.library!.librarySymbols
           .where((symbol) => symbol.name.toLowerCase().contains(query))
           .toList();
     }
@@ -183,11 +183,11 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
     );
   }
 
-  Widget _buildLibrarySymbolList(List<kicad_models.Symbol> symbols) {
+  Widget _buildLibrarySymbolList(List<kicad_models.LibrarySymbol> librarySymbols) {
     return ListView.builder(
-      itemCount: symbols.length,
+      itemCount: librarySymbols.length,
       itemBuilder: (context, index) {
-        final symbol = symbols[index];
+        final symbol = librarySymbols[index];
         return ListTile(
           title: Text(symbol.name),
           onTap: () {

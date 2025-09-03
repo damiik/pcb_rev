@@ -46,7 +46,7 @@ final class KiCadSchematicParser {
     var generator = '';
     var uuid = '';
     KiCadLibrary? library;
-    final symbols = <SymbolInstance>[];
+    final symbolInstances = <SymbolInstance>[];
     final wires = <Wire>[];
     final buses = <Bus>[];
     final busEntries = <BusEntry>[];
@@ -79,7 +79,7 @@ final class KiCadSchematicParser {
           );
 
         case SList(elements: [SAtom(value: 'symbol'), ...final symbolElements]):
-          symbols.add(_parseSymbolInstance(symbolElements));
+          symbolInstances.add(_parseSymbolInstance(symbolElements));
           break;
 
         case SList(elements: [SAtom(value: 'wire'), ...final wireElements]):
@@ -120,7 +120,7 @@ final class KiCadSchematicParser {
       generator: generator,
       uuid: uuid,
       library: library,
-      symbols: symbols,
+      symbolInstances: symbolInstances,
       wires: wires,
       buses: buses,
       busEntries: busEntries,

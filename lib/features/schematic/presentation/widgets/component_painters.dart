@@ -12,7 +12,7 @@ void drawComponentSymbol(
   Paint paint,
   Paint fillPaint, {
   bool isSelected = false,
-  KiCadSymbolLoader? symbolLoader,
+  KiCadLibrarySymbolLoader? symbolLoader,
 }) {
   // If we have a KiCad symbol loader, try to use it
   if (symbolLoader != null) {

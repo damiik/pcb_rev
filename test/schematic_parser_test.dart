@@ -15,17 +15,17 @@ void main() {
 
     // Verification
     expect(schematic, isNotNull);
-    expect(schematic.symbols.length, 10);
+    expect(schematic.symbolInstances.length, 10);
     expect(schematic.wires.length, 23);
     expect(schematic.junctions.length, 7);
 
     print('Successfully parsed schematic:');
-    print('  - Symbols: ${schematic.symbols.length}');
+    print('  - Symbol Instances: ${schematic.symbolInstances.length}');
     print('  - Wires: ${schematic.wires.length}');
     print('  - Junctions: ${schematic.junctions.length}');
 
     // Optional: Check a specific property of a symbol
-    final r1 = schematic.symbols.firstWhere((s) => s.properties.any((p) => p.name == 'Reference' && p.value == 'R1'));
+    final r1 = schematic.symbolInstances.firstWhere((s) => s.properties.any((p) => p.name == 'Reference' && p.value == 'R1'));
     expect(r1.libId, 'Device:R');
   });
 }

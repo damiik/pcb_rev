@@ -16,9 +16,9 @@ void main() async {
       print('Library parsed successfully:');
       print('  Version: ${library.version}');
       print('  Generator: ${library.generator}');
-      print('  Symbols count: ${library.symbols.length}');
+      print('  Symbols count: ${library.librarySymbols.length}');
 
-      for (final symbol in library.symbols) {
+      for (final symbol in library.librarySymbols) {
         print('  Symbol: ${symbol.name}');
         print('    Properties: ${symbol.properties.length}');
         for (final prop in symbol.properties) {
@@ -41,12 +41,12 @@ void main() async {
   );
 
   print('\n=== LOADER TEST ===');
-  final loader = KiCadSymbolLoader(
+  final loader = KiCadLibrarySymbolLoader(
     'lib/features/symbol_library/data/example_kicad_symbols.kicad_sym',
   );
 
   try {
-    final symbols = await loader.loadAllSymbols();
+    final symbols = await loader.loadAllLibrarySymbols();
     print('Loaded ${symbols.length} symbols:');
 
     final rSymbol = symbols['R'];

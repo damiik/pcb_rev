@@ -8,15 +8,15 @@ import 'kicad_symbol_renderer.dart';
 class SchematicView extends StatefulWidget {
   final KiCadSchematic schematic;
   final Position? centerOn;
-  final String? selectedSymbolId;
-  final void Function(SymbolInstance)? onSymbolSelected;
+  final String? selectedSymbolInstanceId;
+  final void Function(SymbolInstance)? onSymbolInstanceSelected;
 
   const SchematicView(
       {Key? key,
       required this.schematic,
       this.centerOn,
-      this.selectedSymbolId,
-      this.onSymbolSelected})
+      this.selectedSymbolInstanceId,
+      this.onSymbolInstanceSelected})
       : super(key: key);
 
   @override
@@ -24,7 +24,7 @@ class SchematicView extends StatefulWidget {
 }
 
 class _SchematicViewState extends State<SchematicView> {
-  Map<String, Symbol>? _symbolCache;
+  Map<String, LibrarySymbol>? _librarySymbolCache;
   late TransformationController _transformationController;
 
   @override
@@ -72,21 +72,21 @@ class _SchematicViewState extends State<SchematicView> {
   void _loadSymbols() {
     if (widget.schematic.library == null) {
       setState(() {
-        _symbolCache = {};
+        _librarySymbolCache = {};
       });
       return;
     }
-    final cache = <String, Symbol>{};
-    for (final symbol in widget.schematic.library!.symbols) {
+    final cache = <String, LibrarySymbol>{};
+    for (final symbol in widget.schematic.library!.librarySymbols) {
       cache[symbol.name] = symbol;
     }
     setState(() {
-      _symbolCache = cache;
+      _librarySymbolCache = cache;
     });
   }
 
   void _handleTap(TapUpDetails details) {
-    if (_symbolCache == null) return;
+    if (_librarySymbolCache == null) return;
 
     final localPosition = details.localPosition;
     final localPositionVector = Vector4(localPosition.dx, localPosition.dy, 0, 1);
@@ -95,8 +95,8 @@ class _SchematicViewState extends State<SchematicView> {
 
     final renderer = KiCadSymbolRenderer();
 
-    for (final symbolInstance in widget.schematic.symbols) {
-      final symbol = _symbolCache![symbolInstance.libId];
+    for (final symbolInstance in widget.schematic.symbolInstances) {
+      final symbol = _librarySymbolCache![symbolInstance.libId];
       if (symbol != null) {
         final bounds = renderer.getSymbolBounds(symbol);
         final symbolRect = Rect.fromLTWH(
@@ -107,7 +107,7 @@ class _SchematicViewState extends State<SchematicView> {
         );
 
         if (symbolRect.contains(tapPosition)) {
-          widget.onSymbolSelected?.call(symbolInstance);
+          widget.onSymbolInstanceSelected?.call(symbolInstance);
           return; // Stop after finding the first symbol
         }
       }
@@ -116,7 +116,7 @@ class _SchematicViewState extends State<SchematicView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_symbolCache == null) {
+    if (_librarySymbolCache == null) {
       return Center(child: CircularProgressIndicator());
     }
 
@@ -132,8 +132,8 @@ class _SchematicViewState extends State<SchematicView> {
           size: Size(2000, 1500), // A large canvas for the schematic
           painter: _SchematicPainter(
             schematic: widget.schematic,
-            symbolCache: _symbolCache!,
-            selectedSymbolId: widget.selectedSymbolId,
+            librarySymbolCache: _librarySymbolCache!,
+            selectedSymbolInstanceId: widget.selectedSymbolInstanceId,
           ),
         ),
       ),
@@ -149,13 +149,13 @@ class _SchematicViewState extends State<SchematicView> {
 
 class _SchematicPainter extends CustomPainter {
   final KiCadSchematic schematic;
-  final Map<String, Symbol> symbolCache;
-  final String? selectedSymbolId;
+  final Map<String, LibrarySymbol> librarySymbolCache;
+  final String? selectedSymbolInstanceId;
 
   _SchematicPainter(
       {required this.schematic,
-      required this.symbolCache,
-      this.selectedSymbolId});
+      required this.librarySymbolCache,
+      this.selectedSymbolInstanceId});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -165,14 +165,14 @@ class _SchematicPainter extends CustomPainter {
       Paint()..color = Colors.grey[850]!,
     );
 
-    final schematicRenderer = KiCadSchematicRenderer(symbolCache, selectedSymbolId: selectedSymbolId);
+    final schematicRenderer = KiCadSchematicRenderer(librarySymbolCache, selectedSymbolInstanceId: selectedSymbolInstanceId);
     schematicRenderer.render(canvas, size, schematic);
   }
 
   @override
   bool shouldRepaint(_SchematicPainter oldDelegate) {
     return oldDelegate.schematic != schematic ||
-        oldDelegate.symbolCache != symbolCache ||
-        oldDelegate.selectedSymbolId != selectedSymbolId;
+        oldDelegate.librarySymbolCache != librarySymbolCache ||
+        oldDelegate.selectedSymbolInstanceId != selectedSymbolInstanceId;
   }
 }

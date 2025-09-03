@@ -8,7 +8,7 @@ final class KiCadSchematic {
   final String generator;
   final String uuid;
   final KiCadLibrary? library; // Embedded symbols
-  final List<SymbolInstance> symbols;
+  final List<SymbolInstance> symbolInstances;
   final List<Wire> wires;
   final List<Bus> buses;
   final List<BusEntry> busEntries;
@@ -21,7 +21,7 @@ final class KiCadSchematic {
     required this.generator,
     required this.uuid,
     this.library,
-    required this.symbols,
+    required this.symbolInstances,
     required this.wires,
     required this.buses,
     required this.busEntries,
