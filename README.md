@@ -118,14 +118,28 @@ Do reprezentacji schematu, komponentów (jako referencji do symboli) oraz połą
 
 ### 3.4. Zarządzanie Symbolami KiCad
 
-Kluczowym elementem aplikacji jest zdolność do pracy z formatem KiCad, co jest realizowane przez moduł `symbol_library`. Moduł ten odpowiada za cały proces: od wczytania plików `.kicad_sym` (biblioteki symboli) i `.kicad_sch` (schematy), aż po ich renderowanie na ekranie. Proces ten jest podzielony na kilka etapów:
+Kluczowym elementem aplikacji jest zdolność do pracy z formatem KiCad. Aby to osiągnąć, moduł `symbol_library` precyzyjnie rozróżnia dwa fundamentalne pojęcia: **symbol biblioteczny** (definicję) i **instancję symbolu** (użycie na schemacie).
 
-1.  **Tokenizacja (`kicad_tokenizer.dart`):** Plik wejściowy jest najpierw dzielony na listę podstawowych tokenów (nawiasy, stringi, liczby).
+-   **Symbol Biblioteczny (`Library Symbol`):** Jest to abstrakcyjna definicja komponentu przechowywana w pliku biblioteki (`.kicad_sym`). Definiuje ona wygląd graficzny symbolu (kształty, tekst) oraz jego piny (numer, nazwa, pozycja, typ elektryczny). Jest to wzorzec, który nie posiada unikalnego identyfikatora (np. `R1`) ani pozycji na schemacie.
+
+-   **Instancja Symbolu (`Symbol Instance`):** Jest to konkretne użycie symbolu bibliotecznego na schemacie (w pliku `.kicad_sch`). Każda instancja posiada:
+    -   Odwołanie do **symbolu bibliotecznego** (`lib_id`), z którego czerpie swój wygląd.
+    -   Unikalny identyfikator referencyjny (np. `R1`, `C1`, `U1`).
+    -   Współrzędne (`at`) określające jej pozycję na schemacie.
+    -   Właściwości (np. wartość `10kΩ`, napięcie `5V`), które mogą nadpisać domyślne wartości z definicji bibliotecznej.
+
+Moduł `symbol_library` zarządza całym procesem przetwarzania tych danych, od wczytania plików aż po renderowanie:
+
+1.  **Tokenizacja (`kicad_tokenizer.dart`):** Plik wejściowy (`.kicad_sym` lub `.kicad_sch`) jest dzielony na listę podstawowych tokenów (nawiasy, stringi, liczby).
 2.  **Parsowanie S-wyrażeń (`kicad_sexpr_parser.dart`):** Strumień tokenów jest przekształcany w drzewo S-wyrażeń (S-Expressions), które jest podstawową strukturą danych w plikach KiCad.
-3.  **Parsowanie Logiczne (`kicad_symbol_parser.dart`, `kicad_schematic_parser.dart`):** Drzewo S-wyrażeń jest analizowane, a jego zawartość jest mapowana na niezmienne rekordy zdefiniowane w `kicad_symbol_models.dart` i `kicad_schematic_models.dart`. Te rekordy reprezentują logiczną strukturę symboli (grafika, piny) i schematów (symbole, przewody, nety).
-4.  **Renderowanie (`kicad_symbol_renderer.dart`, `kicad_schematic_renderer.dart`):** Na podstawie modeli danych (rekordów), wyspecjalizowane renderery (oparte na `CustomPainter`) rysują symbole i cały schemat na płótnie (canvas) w interfejsie użytkownika.
+3.  **Parsowanie Logiczne (`kicad_symbol_parser.dart`, `kicad_schematic_parser.dart`):** Drzewo S-wyrażeń jest analizowane, a jego zawartość jest mapowana na dedykowane, niezmienne rekordy:
+    -   Z plików `.kicad_sym` powstają modele **symboli bibliotecznych**.
+    -   Z plików `.kicad_sch` powstają modele **instancji symboli** oraz inne elementy schematu (przewody, nety).
+4.  **Renderowanie (`kicad_symbol_renderer.dart`, `kicad_schematic_renderer.dart`):** Na podstawie modeli danych, wyspecjalizowane renderery (oparte na `CustomPainter`) rysują na ekranie:
+    -   Pojedyncze **symbole biblioteczne** (np. w przeglądarce bibliotek).
+    -   Cały schemat, rysując każdą **instancję symbolu** w jej odpowiednim miejscu i z jej właściwościami.
 
-Dzięki takiemu podejściu, aplikacja może nie tylko wyświetlać istniejące schematy KiCad, ale również wykorzystywać te same struktury do tworzenia nowych schematów od zera.
+Dzięki takiemu podejściu, aplikacja może nie tylko wyświetlać istniejące schematy KiCad, ale również wykorzystywać te same struktury do tworzenia nowych schematów od zera, zachowując spójność z logiką oprogramowania CAD.
 
 ## 4. Szczegóły Implementacji (Aktualny Stan)
 

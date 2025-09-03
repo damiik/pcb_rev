@@ -8,6 +8,7 @@ class GlobalListPanel extends StatefulWidget {
   final List<LogicalNet> nets;
   final Function(LogicalComponent) onComponentSelected;
   final Function(LogicalNet) onNetSelected;
+  final Function(kicad_models.LibrarySymbol) onLibrarySymbolSelected;
   final KiCadSchematic? schematic;
 
   GlobalListPanel({
@@ -15,6 +16,7 @@ class GlobalListPanel extends StatefulWidget {
     required this.nets,
     required this.onComponentSelected,
     required this.onNetSelected,
+    required this.onLibrarySymbolSelected,
     this.schematic,
   });
 
@@ -190,9 +192,7 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
         final symbol = librarySymbols[index];
         return ListTile(
           title: Text(symbol.name),
-          onTap: () {
-            // TODO: Implement selection handling for library symbols
-          },
+          onTap: () => widget.onLibrarySymbolSelected(symbol),
         );
       },
     );

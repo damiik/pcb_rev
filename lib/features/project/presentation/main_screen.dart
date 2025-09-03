@@ -44,6 +44,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   kicad_symbol_models.Position? _centerOnPosition;
   String? _selectedSymbolInstanceId;
   SymbolInstance? _selectedSymbolInstance;
+  kicad_symbol_models.LibrarySymbol? _selectedLibrarySymbol;
 
   @override
   void initState() {
@@ -160,6 +161,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                       onComponentSelected: _selectComponent,
                       onNetSelected: _selectNet,
                       schematic: _loadedSchematic,
+                      onLibrarySymbolSelected: _selectLibrarySymbol,
                     ),
                   ),
                   Expanded(flex: 5, child: _buildMainPanel()),
@@ -308,14 +310,29 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     }
 
     if (foundSymbolInstance != null) {
-      final symbolInstance = foundSymbolInstance;
+      final nonNullableSymbol = foundSymbolInstance;
+      kicad_symbol_models.LibrarySymbol? librarySymbol;
+      try {
+        librarySymbol = _loadedSchematic?.library?.librarySymbols
+            .firstWhere((s) => s.name == nonNullableSymbol.libId);
+      } catch (e) {
+        librarySymbol = null; // Symbol not found
+      }
+
       setState(() {
-        _selectedSymbolInstance = symbolInstance;
-        _centerOnPosition = symbolInstance.at;
-        _selectedSymbolInstanceId = symbolInstance.uuid;
+        _selectedSymbolInstance = nonNullableSymbol;
+        _selectedLibrarySymbol = librarySymbol;
+        _centerOnPosition = nonNullableSymbol.at;
+        _selectedSymbolInstanceId = nonNullableSymbol.uuid;
         _currentView = ViewMode.schematic;
       });
     }
+  }
+
+  void _selectLibrarySymbol(kicad_symbol_models.LibrarySymbol symbol) {
+    setState(() {
+      _selectedLibrarySymbol = symbol;
+    });
   }
 
   String? _getPropertyValue(
