@@ -95,4 +95,8 @@ class KiCadLibrarySymbolLoader {
   /// Check if a symbol is cached
   bool isSymbolCached(String symbolName) =>
       _symbolCache.containsKey(symbolName);
+
+  LibrarySymbol? getSymbolByName(String symbolName) {
+    return _symbolCache[symbolName];
+  }
 }

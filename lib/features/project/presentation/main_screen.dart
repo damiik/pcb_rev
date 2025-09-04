@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show IntProperty, kIsWeb;
 import 'package:flutter/material.dart';
 import '../../../features/measurement/data/measurement_service.dart'
     as measurement_service;
@@ -21,6 +21,7 @@ import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_models.dart'
     as kicad_symbol_models;
 import '../../symbol_library/presentation/schematic_view.dart';
 import '../../symbol_library/domain/kicad_schematic_writer.dart';
+import 'package:uuid/uuid.dart';
 
 
 enum ViewMode { pcb, schematic }
@@ -72,6 +73,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     try {
       final libraryPath = 'test/kiProject1/example_kicad_symbols.kicad_sym';
       final loader = KiCadLibrarySymbolLoader(libraryPath);
+      await loader.loadAllLibrarySymbols(); // Pre-load symbols
       setState(() {
         _symbolLoader = loader;
       });
@@ -94,101 +96,99 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'PCB Reverse Engineering',
-      theme: ThemeData.dark(),
-      home: DropTarget(
-        onDragDone: (detail) {
-          _handleImageDrop(detail.files.map((f) => f.path).toList());
-        },
-        onDragEntered: (detail) {
-          setState(() {
-            _dragging = true;
-          });
-        },
-        onDragExited: (detail) {
-          setState(() {
-            _dragging = false;
-          });
-        },
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(currentProject?.name ?? 'PCB Analyzer'),
-            actions: [
-              ToggleButtons(
-                isSelected: [
-                  _currentView == ViewMode.pcb,
-                  _currentView == ViewMode.schematic,
-                ],
-                onPressed: (index) {
-                  setState(() {
-                    _currentView =
-                        index == 0 ? ViewMode.pcb : ViewMode.schematic;
-                  });
-                },
-                children: [Icon(Icons.image), Icon(Icons.schema)],
-              ),
-              SizedBox(width: 20),
-              IconButton(
-                icon: Icon(Icons.description),
-                onPressed: _loadSchematic,
-                tooltip: 'Load KiCad Schematic',
-              ),
-              IconButton(
-                icon: Icon(Icons.folder_open),
-                onPressed: _openProject,
-              ),
-              IconButton(icon: Icon(Icons.save), onPressed: _saveProject),
-              IconButton(
-                icon: Icon(Icons.save_as),
-                onPressed: _saveKiCadSchematic,
-                tooltip: 'Save KiCad Schematic',
-              ),
-              IconButton(icon: Icon(Icons.share), onPressed: _exportNetlist),
-            ],
-          ),
-          body: Stack(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    flex: 1,
-                    child: GlobalListPanel(
-                      components:
-                          currentProject?.logicalComponents.values.toList() ??
-                              [],
-                      nets: currentProject?.logicalNets.values.toList() ?? [],
-                      onComponentSelected: _selectComponent,
-                      onNetSelected: _selectNet,
-                      schematic: _loadedSchematic,
-                      onLibrarySymbolSelected: _selectLibrarySymbol,
-                    ),
-                  ),
-                  Expanded(flex: 5, child: _buildMainPanel()),
-                  Expanded(
-                    flex: 1,
-                    child: PropertiesPanel(
-                      selectedSymbolInstance: _selectedSymbolInstance,
-                      measurementState: measurementState,
-                      onMeasurementAdded: _addMeasurement,
-                      onPropertyUpdated: _updateSymbolProperty,
-                    ),
-                  ),
-                ],
-              ),
-              if (_dragging)
-                Container(
-                  color: Colors.blue.withOpacity(0.2),
-                  child: Center(
-                    child: Icon(
-                      Icons.add_photo_alternate,
-                      color: Colors.white,
-                      size: 100,
-                    ),
+    return DropTarget(
+      onDragDone: (detail) {
+        _handleImageDrop(detail.files.map((f) => f.path).toList());
+      },
+      onDragEntered: (detail) {
+        setState(() {
+          _dragging = true;
+        });
+      },
+      onDragExited: (detail) {
+        setState(() {
+          _dragging = false;
+        });
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(currentProject?.name ?? 'PCB Analyzer'),
+          actions: [
+            ToggleButtons(
+              isSelected: [
+                _currentView == ViewMode.pcb,
+                _currentView == ViewMode.schematic,
+              ],
+              onPressed: (index) {
+                setState(() {
+                  _currentView =
+                      index == 0 ? ViewMode.pcb : ViewMode.schematic;
+                });
+              },
+              children: [Icon(Icons.image), Icon(Icons.schema)],
+            ),
+            SizedBox(width: 20),
+            IconButton(
+              icon: Icon(Icons.description),
+              onPressed: _loadSchematic,
+              tooltip: 'Load KiCad Schematic',
+            ),
+            IconButton(
+              icon: Icon(Icons.folder_open),
+              onPressed: _openProject,
+            ),
+            IconButton(icon: Icon(Icons.save), onPressed: _saveProject),
+            IconButton(
+              icon: Icon(Icons.save_as),
+              onPressed: _saveKiCadSchematic,
+              tooltip: 'Save KiCad Schematic',
+            ),
+            IconButton(icon: Icon(Icons.share), onPressed: _exportNetlist),
+          ],
+        ),
+        body: Stack(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  flex: 1,
+                  child: GlobalListPanel(
+                    components:
+                        currentProject?.logicalComponents.values.toList() ??
+                            [],
+                    nets: currentProject?.logicalNets.values.toList() ?? [],
+                    onComponentSelected: _selectComponent,
+                    onNetSelected: _selectNet,
+                    schematic: _loadedSchematic,
+                    onLibrarySymbolSelected: _selectLibrarySymbol,
                   ),
                 ),
-            ],
-          ),
+                Expanded(flex: 5, child: _buildMainPanel()),
+                Expanded(
+                  flex: 1,
+                  child: PropertiesPanel(  // create child PropertiesPanel with required callbacks  
+                    selectedSymbolInstance: _selectedSymbolInstance,
+                    measurementState: measurementState,
+                    onMeasurementAdded: _addMeasurement,
+                    onComponentAdded: _addComponent,
+                    onAddSymbolInstance: _addSymbolInstance,
+                    onPropertyUpdated: _updateSymbolProperty,
+                  ),
+                ),
+              ],
+            ),
+            if (_dragging)
+              Container(
+                color: Colors.blue.withOpacity(0.2),
+                child: Center(
+                  child: Icon(
+                    Icons.add_photo_alternate,
+                    color: Colors.white,
+                    size: 100,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -255,13 +255,17 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     if (result != null) {
       final path = result.files.single.path!;
       if (Platform.isLinux && !path.endsWith('.kicad_sch')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Invalid file type. Please select a .kicad_sch file.',
-            ),
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Invalid file type. Please select a .kicad_sch file.',
+                ),
+              ),
+            );
+          }
+        });
         return;
       }
       await _loadSchematicFile(path, switchToView: true);
@@ -416,19 +420,210 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     }
   }
 
-  void _addMeasurement(String type, dynamic value) {
-    if (value is Map<String, dynamic>) {
-      final newComponent = logicalComponentFromJson({
-        'id': value['name'],
-        'type': value['type'],
-        'value': value['value'],
-        'partNumber': '',
-        'pins': <String, dynamic>{},
+  // to remove
+  void _addComponent(Map<String, dynamic> componentData) {
+    if (_loadedSchematic == null || _symbolLoader == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Schematic or symbol library not loaded.")),
+          );
+        }
       });
-      setState(() {
-        _draggingComponent = newComponent;
-      });
+      return;
     }
+
+    final String type = componentData['type'];
+    final String value = componentData['value'];
+    // The 'name' from the dialog is the reference, e.g., "R1"
+    final String reference = componentData['name'];
+
+    // final librarySymbol = _symbolLoader!.getSymbolByName(type);
+    // Try to resolve the library symbol from selected, loader, or schematic library in a null-safe way.
+    kicad_symbol_models.LibrarySymbol? librarySymbol = _selectedLibrarySymbol; // ?? _selectedlibrarySymbol : _symbolLoader?.getSymbolByName(type);
+    if (librarySymbol == null && _loadedSchematic?.library?.librarySymbols != null) {
+      final libSymbols = _loadedSchematic!.library!.librarySymbols;
+      final matches = libSymbols.where((s) => s.name == type);
+      if (matches.isNotEmpty) {
+        librarySymbol = matches.first;
+      }
+    }
+
+    if (librarySymbol == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Symbol '$type' not found in library.")),
+          );
+        }
+      });
+      return;
+    }
+
+    // Check if reference is unique
+    if (reference.isNotEmpty && _loadedSchematic!.symbolInstances.any((inst) =>
+        inst.properties.any((prop) =>
+            prop.name == 'Reference' && prop.value == reference))) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Component with reference '$reference' already exists.")),
+          );
+        }
+      });
+      return;
+    }
+    
+    kicad_symbol_models.Property? maybeProperty;
+    try {
+      maybeProperty = librarySymbol.properties.firstWhere(
+        (p) => p.name == 'Reference',
+      );
+    } catch (e) {
+      maybeProperty = null;
+    }
+    final prefix = maybeProperty?.value.replaceAll(RegExp(r'\d'), '') ?? 'X';
+    final newRef = reference.isNotEmpty ? reference : _generateNewRef(prefix);
+
+    final newSymbolInstance = SymbolInstance(
+      libId: librarySymbol.name,
+      at: const kicad_symbol_models.Position(150, 100), // Default position
+      uuid: Uuid().v4(),
+      unit: 1,
+      inBom: true,
+      onBoard: true,
+      dnp: false,
+      properties: [
+        kicad_symbol_models.Property(name: 'Reference', value: newRef, position: const kicad_symbol_models.Position(0, 0), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: false)),
+        kicad_symbol_models.Property(name: 'Value', value: value, position: const kicad_symbol_models.Position(0, 0), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: false)),
+        kicad_symbol_models.Property(name: 'Footprint', value: "", position: const kicad_symbol_models.Position(0, 0), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: true)),
+        kicad_symbol_models.Property(name: 'Datasheet', value: "", position: const kicad_symbol_models.Position(0, 0), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: true)),
+      ],
+    );
+
+    final updatedInstances = List<SymbolInstance>.from(_loadedSchematic!.symbolInstances)
+      ..add(newSymbolInstance);
+
+    setState(() {
+      _loadedSchematic = _loadedSchematic!.copyWith(symbolInstances: updatedInstances);
+    });
+  }
+
+  String _generateNewRef(String prefix) {
+    int maxNum = 0;
+    for (final inst in _loadedSchematic!.symbolInstances) {
+      final refProp = inst.properties.firstWhere(
+            (p) => p.name == 'Reference',
+        orElse: () => kicad_symbol_models.Property(name: 'Reference', value: '', position: kicad_symbol_models.Position(0, 0), effects: kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1, height: 1), justify: kicad_symbol_models.Justify.left, hide: false)),
+      );
+      if (refProp.value.startsWith(prefix)) {
+        try {
+          final num = int.parse(refProp.value.substring(prefix.length));
+          if (num > maxNum) {
+            maxNum = num;
+          }
+        } catch (e) {
+          // Ignore parsing errors for references like "U?"
+        }
+      }
+    }
+    return '$prefix${maxNum + 1}';
+  }
+
+
+  void _addSymbolInstance() {
+
+    if (_loadedSchematic == null || _symbolLoader == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Schematic or symbol library not loaded.")),
+          );
+        }
+      });
+      return;
+    }
+
+    // final librarySymbol = _symbolLoader!.getSymbolByName(type);
+    // Try to resolve the library symbol from selected, loader, or schematic library in a null-safe way.
+    kicad_symbol_models.LibrarySymbol? librarySymbol = _selectedLibrarySymbol; // ?? _selectedlibrarySymbol : _symbolLoader?.getSymbolByName(type);
+    if (librarySymbol == null && _loadedSchematic?.library?.librarySymbols != null) {
+      final libSymbols = _loadedSchematic!.library!.librarySymbols;
+
+      final matches = libSymbols.where((s) => s.name == _selectedSymbolInstance?.libId);
+      if (matches.isNotEmpty) {
+        librarySymbol = matches.first;
+      }
+    }
+
+    if (librarySymbol == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Symbol not found. You have to select a symbol from the library list first.")),
+          );
+        }
+      });
+      return;
+    }
+
+    // // Check if reference is unique
+    // if (reference.isNotEmpty && _loadedSchematic!.symbolInstances.any((inst) =>
+    //     inst.properties.any((prop) =>
+    //         prop.name == 'Reference' && prop.value == reference))) {
+    //   WidgetsBinding.instance.addPostFrameCallback((_) {
+    //     if (mounted) {
+    //       ScaffoldMessenger.of(context).showSnackBar(
+    //         SnackBar(content: Text("Component with reference '$reference' already exists.")),
+    //       );
+    //     }
+    //   });
+    //   return;
+    // }
+    
+    kicad_symbol_models.Property? maybeProperty;
+    try {
+      maybeProperty = librarySymbol.properties.firstWhere(
+        (p) => p.name == 'Reference',
+      );
+    } catch (e) {
+      maybeProperty = null;
+    }
+    final prefix = maybeProperty?.value.replaceAll(RegExp(r'\d'), '') ?? 'X';
+    final newRef = _generateNewRef(prefix);
+    final propertyReference  = librarySymbol.properties.firstWhere((p) => p.name == 'Reference', orElse: () => kicad_symbol_models.Property(name: 'Reference', value: '', position: kicad_symbol_models.Position(0, 0), effects: kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1, height: 1), justify: kicad_symbol_models.Justify.left, hide: false)));
+    final propertyValue = librarySymbol.properties.firstWhere((p) => p.name == 'Value', orElse: () => kicad_symbol_models.Property(name: 'Value', value: '', position: kicad_symbol_models.Position(0, 0), effects: kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1, height: 1), justify: kicad_symbol_models.Justify.left, hide: false)));
+    final position = kicad_symbol_models.Position(150, 100); // Default position
+
+    final newSymbolInstance = SymbolInstance(
+      libId: librarySymbol.name,
+      at: position,
+      uuid: Uuid().v4(),
+      unit: 1,
+      inBom: true,
+      onBoard: true,
+      dnp: false,
+      properties: [
+        kicad_symbol_models.Property(name: 'Reference', value: newRef, position: kicad_symbol_models.Position(propertyReference.position.x + position.x, propertyReference.position.y + position.y), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: false)),
+        kicad_symbol_models.Property(name: 'Value', value: propertyValue.value, position: kicad_symbol_models.Position(propertyValue.position.x + position.x, propertyValue.position.y + position.y), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: false)),
+        kicad_symbol_models.Property(name: 'Footprint', value: "", position: kicad_symbol_models.Position(0, 0), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: true)),
+        kicad_symbol_models.Property(name: 'Datasheet', value: "", position: kicad_symbol_models.Position(0, 0), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: true)),
+      ],
+    );
+
+    final updatedInstances = List<SymbolInstance>.from(_loadedSchematic!.symbolInstances)
+      ..add(newSymbolInstance);
+
+    setState(() {
+      _loadedSchematic = _loadedSchematic!.copyWith(symbolInstances: updatedInstances);
+    });
+  }
+
+  void _addMeasurement(String type, dynamic value) {
+    // This function is now only for actual measurements.
+    // The component addition logic has been moved to _addComponent.
+    // For now, we'll just print a debug message.
+    print('Recording measurement: Type=$type, Value=$value');
   }
 
   void _handleTap(Offset position) {
@@ -481,11 +676,15 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     if (result != null) {
       final file = File(result.files.single.path!);
       if (!file.path.endsWith('.pcbrev')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Invalid file type. Please select a .pcbrev file.'),
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Invalid file type. Please select a .pcbrev file.'),
+              ),
+            );
+          }
+        });
         return;
       }
       final content = await file.readAsString();
@@ -512,11 +711,15 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
   Future<void> _saveKiCadSchematic() async {
     if (_loadedSchematic == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No schematic loaded to save.'),
-        ),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('No schematic loaded to save.'),
+            ),
+          );
+        }
+      });
       return;
     }
 
@@ -531,18 +734,26 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         final content = generateKiCadSchematicFileContent(_loadedSchematic!);
         final file = File(outputFile);
         await file.writeAsString(content);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Schematic saved successfully to $outputFile'),
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Schematic saved successfully to $outputFile'),
+              ),
+            );
+          }
+        });
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving schematic: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error saving schematic: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        });
       }
     }
   }

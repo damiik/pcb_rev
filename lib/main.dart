@@ -7,5 +7,24 @@ void main() async {
 
   // Start MCP server in background
   startMCPServer(baseUrl: 'http://localhost:8080');
-  runApp(PCBAnalyzerApp());
+  runApp(MyApp());
+}
+
+class MyApp extends StatefulWidget {
+  @override
+  _MyAppState createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'PCB Reverse Engineering',
+      theme: ThemeData.dark(),
+      scaffoldMessengerKey: scaffoldMessengerKey,
+      home: PCBAnalyzerApp(),
+    );
+  }
 }

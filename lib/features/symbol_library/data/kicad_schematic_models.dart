@@ -29,6 +29,34 @@ final class KiCadSchematic {
     required this.globalLabels,
     required this.labels,
   });
+
+  KiCadSchematic copyWith({
+    String? version,
+    String? generator,
+    String? uuid,
+    KiCadLibrary? library,
+    List<SymbolInstance>? symbolInstances,
+    List<Wire>? wires,
+    List<Bus>? buses,
+    List<BusEntry>? busEntries,
+    List<Junction>? junctions,
+    List<GlobalLabel>? globalLabels,
+    List<Label>? labels,
+  }) {
+    return KiCadSchematic(
+      version: version ?? this.version,
+      generator: generator ?? this.generator,
+      uuid: uuid ?? this.uuid,
+      library: library ?? this.library,
+      symbolInstances: symbolInstances ?? this.symbolInstances,
+      wires: wires ?? this.wires,
+      buses: buses ?? this.buses,
+      busEntries: busEntries ?? this.busEntries,
+      junctions: junctions ?? this.junctions,
+      globalLabels: globalLabels ?? this.globalLabels,
+      labels: labels ?? this.labels,
+    );
+  }
 }
 
 final class SymbolInstance {
@@ -55,6 +83,32 @@ final class SymbolInstance {
     this.mirrorx = false,
     this.mirrory = false,
   });
+
+  SymbolInstance copyWith({
+    String? libId,
+    Position? at,
+    String? uuid,
+    List<Property>? properties,
+    int? unit,
+    bool? inBom,
+    bool? onBoard,
+    bool? dnp,
+    bool? mirrorx,
+    bool? mirrory,
+  }) {
+    return SymbolInstance(
+      libId: libId ?? this.libId,
+      at: at ?? this.at,
+      uuid: uuid ?? this.uuid,
+      properties: properties ?? this.properties,
+      unit: unit ?? this.unit,
+      inBom: inBom ?? this.inBom,
+      onBoard: onBoard ?? this.onBoard,
+      dnp: dnp ?? this.dnp,
+      mirrorx: mirrorx ?? this.mirrorx,
+      mirrory: mirrory ?? this.mirrory,
+    );
+  }
 }
 
 final class Wire {

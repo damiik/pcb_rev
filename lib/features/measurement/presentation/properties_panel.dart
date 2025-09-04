@@ -6,12 +6,16 @@ import '../data/measurement_service.dart';
 class PropertiesPanel extends StatelessWidget {
   final MeasurementState measurementState;
   final Function(String, dynamic) onMeasurementAdded;
+  final Function(Map<String, dynamic>) onComponentAdded;
+  final Function()? onAddSymbolInstance; // Callback for handling *Add symbol instance* button, must be provided by parent
   final SymbolInstance? selectedSymbolInstance;
   final Function(SymbolInstance, kicad_models.Property)? onPropertyUpdated;
 
   PropertiesPanel({
     required this.measurementState,
     required this.onMeasurementAdded,
+    required this.onComponentAdded,
+    this.onAddSymbolInstance,     // In constructor parent must provide this function to handle adding symbol instance
     this.selectedSymbolInstance,
     this.onPropertyUpdated,
   });
@@ -37,6 +41,14 @@ class PropertiesPanel extends StatelessWidget {
             icon: Icon(Icons.add_circle_outline),
             label: Text('Add Component'),
             onPressed: () => _showComponentDialog(context),
+          ),
+          SizedBox(height: 16),
+
+          // Symbol instance creation buttons
+          ElevatedButton.icon(
+            icon: Icon(Icons.add_circle_outline),
+            label: Text('Add Symbol Instance'),
+            onPressed: onAddSymbolInstance,
           ),
           SizedBox(height: 16),
 
@@ -237,10 +249,7 @@ class PropertiesPanel extends StatelessWidget {
                       'name': nameController.text,
                       'value': valueController.text,
                     };
-                    onMeasurementAdded(
-                      (selectedIcVariant ?? selectedType).toLowerCase(),
-                      componentData,
-                    );
+                    onComponentAdded(componentData);
                     Navigator.pop(context);
                   },
                 ),
