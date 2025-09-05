@@ -151,12 +151,12 @@ class _PCBViewerPanelState extends State<PCBViewerPanel> {
   }
 
   Widget _buildViewer() {
-    return InteractiveViewer(
-      transformationController: _transformController,
-      minScale: 0.1,
-      maxScale: 10.0,
-      child: RepaintBoundary(
-        key: _boundaryKey,
+    return RepaintBoundary(
+      key: _boundaryKey,
+      child: InteractiveViewer(
+        transformationController: _transformController,
+        minScale: 0.1,
+        maxScale: 10.0,
         child: GestureDetector(
           onTapUp: (details) {
             if (widget.onTap != null) {
