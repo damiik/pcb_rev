@@ -4,16 +4,7 @@ final List<ToolDefinition> availableTools = [
   ToolDefinition(
     name: 'read_current_image',
     description:
-        'Reads the pixel data of the currently displayed PCB image in the application and returns it in Base64 format. The AI should use this data for visual analysis.',
-    inputSchema: {
-      'type': 'object',
-      'properties': {},
-    },
-  ),
-  ToolDefinition(
-    name: 'read_current_view',
-    description:
-        'Reads the pixel data of the currently visible and transformed (e.g., zoomed or panned) view of the PCB image from the central panel. This captures the exact view as the user sees it.',
+        'Reads the pixel data of the currently visible and transformed (e.g., zoomed or panned) view of the PCB image. This captures the exact view as the user sees it and returns it in Base64 format.',
     inputSchema: {
       'type': 'object',
       'properties': {},
