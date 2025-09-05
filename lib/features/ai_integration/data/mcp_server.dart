@@ -244,6 +244,50 @@ class MCPServer {
     };
   }
 
+  Future<Map<String, dynamic>> _readCurrentView(
+      Map<String, dynamic> args) async {
+    // This is a placeholder. A real implementation requires a mechanism
+    // to request the current view from the UI thread, likely using a
+    // RepaintBoundary and a callback/completer system.
+    _log('Executing placeholder for read_current_view. Returning full image for now.');
+
+    final activeId = state.activeImageId;
+    if (activeId == null) {
+      throw ArgumentError('No active image is set in the application.');
+    }
+    if (state.currentProject == null) {
+      throw ArgumentError('No project is loaded in the application.');
+    }
+
+    final pcbImage = state.currentProject!.pcbImages.firstWhere(
+      (img) => img.id == activeId,
+      orElse: () => throw ArgumentError(
+          'Active image with ID "$activeId" not found in project.'),
+    );
+
+    final imageFile = File(pcbImage.path);
+    if (!await imageFile.exists()) {
+      throw Exception('Image file not found at path: ${pcbImage.path}');
+    }
+
+    final imageBytes = await imageFile.readAsBytes();
+    final base64Data = base64Encode(imageBytes);
+
+    final decodedImage = img.decodeImage(imageBytes);
+    final width = decodedImage?.width ?? 0;
+    final height = decodedImage?.height ?? 0;
+
+    return {
+      'image_id': pcbImage.id,
+      'format': pcbImage.path.split('.').last,
+      'width': width, // Placeholder: should be viewport width
+      'height': height, // Placeholder: should be viewport height
+      'data': base64Data, // Placeholder: should be cropped/transformed image data
+      'note':
+          'This is a placeholder implementation. The full, untransformed image was returned.',
+    };
+  }
+
   Future<Map<String, dynamic>> _writeCurrentImageComponents(
       Map<String, dynamic> args) async {
     final components = args['components'] as List<dynamic>? ?? [];

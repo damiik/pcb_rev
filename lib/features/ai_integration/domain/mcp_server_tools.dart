@@ -11,6 +11,15 @@ final List<ToolDefinition> availableTools = [
     },
   ),
   ToolDefinition(
+    name: 'read_current_view',
+    description:
+        'Reads the pixel data of the currently visible and transformed (e.g., zoomed or panned) view of the PCB image from the central panel. This captures the exact view as the user sees it.',
+    inputSchema: {
+      'type': 'object',
+      'properties': {},
+    },
+  ),
+  ToolDefinition(
     name: 'write_current_image_components',
     description:
         'Writes the component recognition results for the current image back to the project. The AI should call this after processing the image from `read_current_image`.',
