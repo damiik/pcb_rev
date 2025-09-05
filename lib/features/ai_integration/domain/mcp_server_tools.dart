@@ -1,57 +1,19 @@
 import '../data/core.dart';
 
-
-
 final List<ToolDefinition> availableTools = [
   ToolDefinition(
-    name: 'analyze_pcb_image',
-    description: 'Analyze a PCB image to identify components and connections',
+    name: 'read_current_image',
+    description:
+        'Reads the pixel data of the currently displayed PCB image in the application and returns it in Base64 format. The AI should use this data for visual analysis.',
     inputSchema: {
       'type': 'object',
-      'properties': {
-        'image_id': {
-          'type': 'string',
-          'description': 'ID of the PCB image to analyze',
-        },
-        'analysis_type': {
-          'type': 'string',
-          'enum': ['components', 'traces', 'full'],
-          'description': 'Type of analysis to perform',
-        },
-        'region': {
-          'type': 'object',
-          'properties': {
-            'x': {'type': 'number'},
-            'y': {'type': 'number'},
-            'width': {'type': 'number'},
-            'height': {'type': 'number'},
-          },
-          'description': 'Optional region of interest',
-        },
-      },
-      'required': ['image_id'],
+      'properties': {},
     },
   ),
   ToolDefinition(
-    name: 'get_project_state',
-    description: 'Get the current project state including components and nets',
-    inputSchema: {
-      'type': 'object',
-      'properties': {
-        'include_images': {
-          'type': 'boolean',
-          'description': 'Include base64 encoded images in response',
-        },
-        'include_history': {
-          'type': 'boolean',
-          'description': 'Include analysis history',
-        },
-      },
-    },
-  ),
-  ToolDefinition(
-    name: 'update_schematic',
-    description: 'Update the KiCad schematic with new components or connections',
+    name: 'write_current_image_components',
+    description:
+        'Writes the component recognition results for the current image back to the project. The AI should call this after processing the image from `read_current_image`.',
     inputSchema: {
       'type': 'object',
       'properties': {
@@ -60,84 +22,72 @@ final List<ToolDefinition> availableTools = [
           'items': {
             'type': 'object',
             'properties': {
-              'action': {'type': 'string', 'enum': ['add', 'update', 'remove']},
-              'id': {'type': 'string'},
-              'type': {'type': 'string'},
-              'value': {'type': 'string'},
               'designator': {'type': 'string'},
-              'position': {'type': 'object'},
+              'bounding_box': {
+                'type': 'object',
+                'properties': {
+                  'x': {'type': 'number'},
+                  'y': {'type': 'number'},
+                  'w': {'type': 'number'},
+                  'h': {'type': 'number'},
+                },
+                'required': ['x', 'y', 'w', 'h'],
+              },
+              'confidence': {'type': 'number'},
             },
+            'required': ['designator', 'bounding_box'],
           },
         },
-        'nets': {
+      },
+      'required': ['components'],
+    },
+  ),
+  ToolDefinition(
+    name: 'get_kicad_schematic',
+    description:
+        'Retrieves the full KiCad schematic data for the current project, including all symbol instances, wires, and nets.',
+    inputSchema: {
+      'type': 'object',
+      'properties': {},
+    },
+  ),
+  ToolDefinition(
+    name: 'get_symbol_libraries',
+    description:
+        'Retrieves the list of available KiCad symbol libraries and the symbols they contain, which can be used to place new components on the schematic.',
+    inputSchema: {
+      'type': 'object',
+      'properties': {},
+    },
+  ),
+  ToolDefinition(
+    name: 'update_kicad_schematic',
+    description:
+        'Proposes and applies updates to the KiCad schematic, such as adding new symbol instances or creating new connections (wires/nets).',
+    inputSchema: {
+      'type': 'object',
+      'properties': {
+        'updates': {
           'type': 'array',
           'items': {
             'type': 'object',
+            'description':
+                'A single update operation, e.g., adding a symbol.',
             'properties': {
-              'action': {'type': 'string', 'enum': ['add', 'update', 'remove']},
-              'id': {'type': 'string'},
-              'name': {'type': 'string'},
-              'connections': {'type': 'array', 'items': {'type': 'string'}},
+              'action': {
+                'type': 'string',
+                'enum': ['add_symbol', 'add_wire']
+              },
+              'payload': {
+                'type': 'object',
+                'description':
+                    'The data for the action, e.g., a SymbolInstance object.'
+              },
             },
           },
         },
       },
-    },
-  ),
-  ToolDefinition(
-    name: 'generate_netlist',
-    description: 'Generate a KiCad netlist from the current project state',
-    inputSchema: {
-      'type': 'object',
-      'properties': {
-        'format': {
-          'type': 'string',
-          'enum': ['kicad', 'spice', 'generic'],
-          'description': 'Netlist format to generate',
-        },
-      },
-    },
-  ),
-  ToolDefinition(
-    name: 'add_pcb_image',
-    description: 'Add a new PCB image to the project',
-    inputSchema: {
-      'type': 'object',
-      'properties': {
-        'path': {
-          'type': 'string',
-          'description': 'File path or URL of the image',
-        },
-        'data': {
-          'type': 'string',
-          'description': 'Base64 encoded image data',
-        },
-        'metadata': {
-          'type': 'object',
-          'description': 'Additional metadata about the image',
-        },
-      },
-      'required': ['path'],
-    },
-  ),
-  ToolDefinition(
-    name: 'detect_components',
-    description: 'Detect and classify components in PCB image using computer vision',
-    inputSchema: {
-      'type': 'object',
-      'properties': {
-        'image_id': {
-          'type': 'string',
-          'description': 'ID of the PCB image to analyze',
-        },
-        'confidence_threshold': {
-          'type': 'number',
-          'minimum': 0.0,
-          'maximum': 1.0,
-          'description': 'Minimum confidence threshold for detections',
-        },
-      },
-      'required': ['image_id'],
+      'required': ['updates'],
     },
   ),
 ];

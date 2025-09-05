@@ -21,12 +21,17 @@ import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_models.dart'
     as kicad_symbol_models;
 import '../../symbol_library/presentation/schematic_view.dart';
 import '../../symbol_library/domain/kicad_schematic_writer.dart';
+import '../../ai_integration/data/mcp_server.dart';
 import 'package:uuid/uuid.dart';
 
 
 enum ViewMode { pcb, schematic }
 
 class PCBAnalyzerApp extends StatefulWidget {
+  final MCPServer? mcpServer;
+
+  const PCBAnalyzerApp({Key? key, this.mcpServer}) : super(key: key);
+
   @override
   _PCBAnalyzerAppState createState() => _PCBAnalyzerAppState();
 }
@@ -55,6 +60,12 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     _loadDefaultSymbolLibrary();
   }
 
+  void _updateServerProject() {
+    if (widget.mcpServer != null && currentProject != null) {
+      widget.mcpServer!.updateProject(currentProject!);
+    }
+  }
+
   void _initializeProject() {
     setState(() {
       currentProject = projectFromJson({
@@ -66,6 +77,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         'schematicFilePath': null, // No schematic loaded initially
         'pcbImages': <dynamic>[],
       });
+      _updateServerProject();
     });
   }
 
@@ -286,6 +298,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         }
         if (currentProject != null) {
           currentProject = currentProject!.copyWith(schematicFilePath: path);
+          _updateServerProject();
         }
       });
     } catch (e) {
@@ -408,6 +421,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         currentProject = project;
         _currentView = ViewMode.pcb; // Switch to pcb view to show the new image
         _currentImageIndex = project.pcbImages.length - 1;
+        _updateServerProject();
         print('[MainScreen] Final project state updated.');
       });
     } catch (e) {
@@ -694,6 +708,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         _currentImageIndex = 0;
         _loadedSchematic = null;
         _currentView = ViewMode.pcb;
+        _updateServerProject();
       });
 
       if (project.schematicFilePath != null) {

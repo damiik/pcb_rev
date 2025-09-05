@@ -90,12 +90,29 @@ class JsonRpcResponse {
 // ============================================================================
 
 class MCPServerState {
-  Project currentProject;
+  Project? currentProject;
   KiCadSchematic? schematicModel;
+  String? activeImageId;
   // final Map<String, PcbImage> imageCache = {};
   final List<Map<String, dynamic>> analysisHistory = [];
 
-  MCPServerState({required this.currentProject, this.schematicModel});
+  MCPServerState({
+    this.currentProject,
+    this.schematicModel,
+    this.activeImageId,
+  });
+
+  MCPServerState copyWith({
+    Project? currentProject,
+    KiCadSchematic? schematicModel,
+    String? activeImageId,
+  }) {
+    return MCPServerState(
+      currentProject: currentProject ?? this.currentProject,
+      schematicModel: schematicModel ?? this.schematicModel,
+      activeImageId: activeImageId ?? this.activeImageId,
+    );
+  }
 }
 
 class MCPServerConfig {
