@@ -1,8 +1,13 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+
 import '../../../features/project/data/project.dart';
 import '../../../features/schematic/data/logical_models.dart';
+import '../data/capture_service.dart';
 import '../data/image_modification.dart';
 import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_loader.dart';
 
@@ -37,6 +42,40 @@ class PCBViewerPanel extends StatefulWidget {
 
 class _PCBViewerPanelState extends State<PCBViewerPanel> {
   final TransformationController _transformController = TransformationController();
+  final _boundaryKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    ViewCaptureService().registerTrigger(_captureView);
+  }
+
+  @override
+  void dispose() {
+    ViewCaptureService().unregisterTrigger();
+    _transformController.dispose();
+    super.dispose();
+  }
+
+  void _captureView() async {
+    try {
+      if (_boundaryKey.currentContext == null) {
+        throw Exception("Boundary context is null. Cannot capture view.");
+      }
+      final boundary =
+          _boundaryKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      final image = await boundary.toImage(pixelRatio: 1.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) {
+        throw Exception("Failed to get byte data from image.");
+      }
+      final bytes = byteData.buffer.asUint8List();
+      ViewCaptureService().complete(bytes);
+    } catch (e) {
+      print("Error capturing view: $e");
+      ViewCaptureService().cancel();
+    }
+  }
 
   ImageModification get _currentModification {
     if (widget.project != null && widget.project!.pcbImages.isNotEmpty) {
@@ -112,20 +151,23 @@ class _PCBViewerPanelState extends State<PCBViewerPanel> {
   }
 
   Widget _buildViewer() {
-    return InteractiveViewer(
-      transformationController: _transformController,
-      minScale: 0.1,
-      maxScale: 10.0,
-      child: GestureDetector(
-        onTapUp: (details) {
-          if (widget.onTap != null) {
-            final localPosition = _transformController.toScene(
-              details.localPosition,
-            );
-            widget.onTap!(localPosition);
-          }
-        },
-        child: _buildImageLayer(),
+    return RepaintBoundary(
+      key: _boundaryKey,
+      child: InteractiveViewer(
+        transformationController: _transformController,
+        minScale: 0.1,
+        maxScale: 10.0,
+        child: GestureDetector(
+          onTapUp: (details) {
+            if (widget.onTap != null) {
+              final localPosition = _transformController.toScene(
+                details.localPosition,
+              );
+              widget.onTap!(localPosition);
+            }
+          },
+          child: _buildImageLayer(),
+        ),
       ),
     );
   }

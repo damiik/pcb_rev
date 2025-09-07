@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:image/image.dart' as img;
 import 'package:http/http.dart' as http;
 
+import '../../pcb_viewer/data/capture_service.dart';
 import 'core.dart';
 import '../domain/mcp_server_tools.dart';
 
@@ -51,6 +52,12 @@ class MCPServer {
   }
 
   void _handleHttpRequest(HttpRequest request) async {
+    // NEW: Handle image requests
+    if (request.method == 'GET' && request.uri.path.startsWith('/images/')) {
+      await _serveImage(request);
+      return;
+    }
+
     if (request.uri.path != config.basePath) {
       request.response
         ..statusCode = HttpStatus.notFound
@@ -136,6 +143,37 @@ class MCPServer {
     }
   }
 
+  Future<void> _serveImage(HttpRequest request) async {
+    final imageName = request.uri.pathSegments.last;
+    // Basic security check
+    if (imageName.contains('..')) {
+      request.response
+        ..statusCode = HttpStatus.forbidden
+        ..close();
+      return;
+    }
+
+    final tempDir = Directory.systemTemp;
+    final filePath = '${tempDir.path}/$imageName';
+    final file = File(filePath);
+
+    if (await file.exists()) {
+      _log('Serving image: $filePath');
+      request.response.headers.contentType = ContentType.parse('image/png');
+      try {
+        await file.openRead().pipe(request.response);
+      } catch (e) {
+        _log('Error piping image stream: $e');
+      }
+    } else {
+      _log('Image not found: $filePath');
+      request.response
+        ..statusCode = HttpStatus.notFound
+        ..write('Not Found')
+        ..close();
+    }
+  }
+
   Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)> 
       get _routes => {
             'initialize': _handleInitialize,
@@ -149,7 +187,7 @@ class MCPServer {
       Map<String, dynamic> params) async {
     _log('Handling "initialize" request.');
     return {
-      'protocolVersion': '2024-11-05',
+      'protocolVersion': '2025-06-18',
       'capabilities': {
         'tools': {
           'listChanged': true,
@@ -212,36 +250,47 @@ class MCPServer {
     if (activeId == null) {
       throw ArgumentError('No active image is set in the application.');
     }
-    if (state.currentProject == null) {
-      throw ArgumentError('No project is loaded in the application.');
+
+    try {
+      _log('Requesting view capture from the UI...');
+      // Use a timeout to prevent the server from hanging indefinitely
+      final imageBytes = await ViewCaptureService()
+          .capture()
+          .timeout(const Duration(seconds: 10));
+      _log('View capture successful.');
+
+      // Save image to a temporary file
+      final tempDir = Directory.systemTemp;
+      final imageName =
+          'pcb_capture_${DateTime.now().millisecondsSinceEpoch}.png';
+      final imagePath = '${tempDir.path}/$imageName';
+      await File(imagePath).writeAsBytes(imageBytes);
+      _log('Image saved to temporary file: $imagePath');
+
+      // Construct URL
+      final imageUrl = 'http://${config.host}:${config.port}/images/$imageName';
+
+      final decodedImage = img.decodeImage(imageBytes);
+      final width = decodedImage?.width ?? 0;
+      final height = decodedImage?.height ?? 0;
+
+      return {
+        'image_id': activeId,
+        'format': 'png',
+        'width': width,
+        'height': height,
+        'url': imageUrl, // Return URL instead of base64 data
+        'note':
+            'The image data is available at the provided URL. The AI model should fetch this URL to get the image.',
+      };
+    } on TimeoutException {
+      _log('Error: Timed out waiting for view capture from the UI.');
+      throw Exception(
+          'Timed out waiting for view capture. Is the UI responsive?');
+    } catch (e) {
+      _log('Error capturing view: $e');
+      throw Exception('Failed to capture current view from the UI: $e');
     }
-
-    final pcbImage = state.currentProject!.pcbImages.firstWhere(
-      (img) => img.id == activeId,
-      orElse: () => throw ArgumentError(
-          'Active image with ID "$activeId" not found in project.'),
-    );
-
-    final imageFile = File(pcbImage.path);
-    if (!await imageFile.exists()) {
-      throw Exception('Image file not found at path: ${pcbImage.path}');
-    }
-
-    final imageBytes = await imageFile.readAsBytes();
-    final base64Data = base64Encode(imageBytes);
-
-    // Decode the image to get its dimensions
-    final decodedImage = img.decodeImage(imageBytes);
-    final width = decodedImage?.width ?? 0;
-    final height = decodedImage?.height ?? 0;
-
-    return {
-      'image_id': pcbImage.id,
-      'format': pcbImage.path.split('.').last,
-      'width': width,
-      'height': height,
-      'data': base64Data,
-    };
   }
 
   Future<Map<String, dynamic>> _writeCurrentImageComponents(
@@ -374,17 +423,3 @@ class MCPServer {
     await _logController.close();
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
