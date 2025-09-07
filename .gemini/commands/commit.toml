@@ -1,0 +1,16 @@
+#In: <project>/.gemini/commands/commit.toml
+#Invoked via: /git:commit "some description"
+
+description = "Commits current changes"
+prompt = """
+# Task: git commit staged changes
+
+Your taks is to commit staged git changes with relevant changes description
+prepared with usage of {{args}}.
+
+Your response should include:
+1. Explanation of changes made.
+
+# Behavior
+#1. 
+"""
