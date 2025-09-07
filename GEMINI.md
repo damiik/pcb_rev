@@ -110,9 +110,20 @@ MeasurementState recordResistance(
 
 ## 4. Przepływ Pracy przy Rozwoju
 
-1.  **Definiowanie Modeli:** Zawsze zaczynaj od zdefiniowania niezmiennych rekordów w `lib/models/`.
-2.  **Tworzenie Logiki w Serwisach:** Implementuj logikę biznesową jako czyste funkcje w `lib/services/`. Unikaj tworzenia klas-serwisów.
-3.  **Integracja z UI:** Podłącz logikę do widgetów, zarządzając stanem wewnątrz `State` i przekazując dane w dół drzewa widgetów w sposób niezmienny.
+1.  **Definiowanie Modeli:** Zawsze zaczynaj od zdefiniowania niezmiennych rekordów w `lib/data/`.
+2.  **Tworzenie Logiki w Serwisach:** Implementuj logikę biznesową jako czyste funkcje w `lib/domain/`. Unikaj tworzenia klas-serwisów.
+3.  **Integracja z UI:**
+  - Widgety umieszczaj w ``lib/presetation``
+  - Podłącz logikę do widgetów, zarządzając stanem wewnątrz `State` i przekazując dane w dół drzewa widgetów w sposób niezmienny.
+
 4.  **Testowanie:** Pisz testy jednostkowe dla czystych funkcji, co jest znacznie prostsze niż testowanie klas z zależnościami.
 
 Przestrzeganie tych zasad zapewni, że kod pozostanie prosty, łatwy do testowania i gotowy na dalszą ewolucję.
+
+## 5. Zasady podziału projektu na mniejsze moduły
+
+### 5.1 Logiczna spójność
+Kiedy część projetku logicznie niezależna od reszty wtedy powinna tworzyć oddzielny moduł - nawet jeżeli jej rozmiar jest mnimalny, w przyszłości umożliwi to rozbudowę bez zbędnej refaktoryzacji
+
+### 5.2 Ograniczenie kontekstu
+Podział modułu na mniejsze podmoduły ułatwia analizę i edycję kodu modułu. Ograniczenie rozmiaru plików poniżej 500 linii powoduje drastyczną poprawę skupienia i wykorzystania kontekstu przez wspomagające programowanie systemy AI.
