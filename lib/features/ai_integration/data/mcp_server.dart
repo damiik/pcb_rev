@@ -52,6 +52,12 @@ class MCPServer {
   }
 
   void _handleHttpRequest(HttpRequest request) async {
+    // NEW: Handle image requests
+    if (request.method == 'GET' && request.uri.path.startsWith('/images/')) {
+      await _serveImage(request);
+      return;
+    }
+
     if (request.uri.path != config.basePath) {
       request.response
         ..statusCode = HttpStatus.notFound
@@ -137,6 +143,37 @@ class MCPServer {
     }
   }
 
+  Future<void> _serveImage(HttpRequest request) async {
+    final imageName = request.uri.pathSegments.last;
+    // Basic security check
+    if (imageName.contains('..')) {
+      request.response
+        ..statusCode = HttpStatus.forbidden
+        ..close();
+      return;
+    }
+
+    final tempDir = Directory.systemTemp;
+    final filePath = '${tempDir.path}/$imageName';
+    final file = File(filePath);
+
+    if (await file.exists()) {
+      _log('Serving image: $filePath');
+      request.response.headers.contentType = ContentType.parse('image/png');
+      try {
+        await file.openRead().pipe(request.response);
+      } catch (e) {
+        _log('Error piping image stream: $e');
+      }
+    } else {
+      _log('Image not found: $filePath');
+      request.response
+        ..statusCode = HttpStatus.notFound
+        ..write('Not Found')
+        ..close();
+    }
+  }
+
   Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)> 
       get _routes => {
             'initialize': _handleInitialize,
@@ -150,7 +187,7 @@ class MCPServer {
       Map<String, dynamic> params) async {
     _log('Handling "initialize" request.');
     return {
-      'protocolVersion': '2024-11-05',
+      'protocolVersion': '2025-06-18',
       'capabilities': {
         'tools': {
           'listChanged': true,
@@ -217,10 +254,21 @@ class MCPServer {
     try {
       _log('Requesting view capture from the UI...');
       // Use a timeout to prevent the server from hanging indefinitely
-      final imageBytes = await ViewCaptureService().capture().timeout(const Duration(seconds: 10));
+      final imageBytes = await ViewCaptureService()
+          .capture()
+          .timeout(const Duration(seconds: 10));
       _log('View capture successful.');
 
-      final base64Data = base64Encode(imageBytes);
+      // Save image to a temporary file
+      final tempDir = Directory.systemTemp;
+      final imageName =
+          'pcb_capture_${DateTime.now().millisecondsSinceEpoch}.png';
+      final imagePath = '${tempDir.path}/$imageName';
+      await File(imagePath).writeAsBytes(imageBytes);
+      _log('Image saved to temporary file: $imagePath');
+
+      // Construct URL
+      final imageUrl = 'http://${config.host}:${config.port}/images/$imageName';
 
       final decodedImage = img.decodeImage(imageBytes);
       final width = decodedImage?.width ?? 0;
@@ -228,15 +276,17 @@ class MCPServer {
 
       return {
         'image_id': activeId,
-        'format': 'png', // We capture as PNG
+        'format': 'png',
         'width': width,
         'height': height,
-        'data': base64Data,
-        'note': 'The image data represents the current user view of the PCB.',
+        'url': imageUrl, // Return URL instead of base64 data
+        'note':
+            'The image data is available at the provided URL. The AI model should fetch this URL to get the image.',
       };
     } on TimeoutException {
       _log('Error: Timed out waiting for view capture from the UI.');
-      throw Exception('Timed out waiting for view capture. Is the UI responsive?');
+      throw Exception(
+          'Timed out waiting for view capture. Is the UI responsive?');
     } catch (e) {
       _log('Error capturing view: $e');
       throw Exception('Failed to capture current view from the UI: $e');
@@ -373,17 +423,3 @@ class MCPServer {
     await _logController.close();
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
