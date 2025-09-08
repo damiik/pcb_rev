@@ -26,9 +26,17 @@ Aplikacja jest rozwijana w technologii Flutter, co umożliwia jej działanie na 
 
 ## 2. Integracja z AI (MCP Server)
 
-Aplikacja PCBRev komunikuje się z zewnętrznymi modelami AI za pośrednictwem wbudowanego serwera **MCP (Machine-Controller-Protocol) Server**. Serwer ten działa jako most, udostępniając stan projektu i narzędzia, które model AI może wykorzystać do analizy i modyfikacji schematu.
+Aplikacja PCBRev komunikuje się z zewnętrznymi modelami AI za pośrednictwem wbudowanego serwera **MCP (Machine-Controller-Protocol) Server**.
 
-### 2.1. Połączenie z Serwerem
+### 2.1. Rola i Architektura Serwera
+
+Należy podkreślić, że **MCP Server nie jest osobnym programem**, lecz integralną częścią głównej aplikacji PCBRev. Działa on w tym samym procesie i ma bezpośredni dostęp do aktualnego, żywego stanu projektu w pamięci — w tym do załadowanego schematu KiCad, bibliotek symboli, obrazów i innych struktur danych.
+
+Głównym celem serwera jest działanie jako **bezpieczny most (proxy)** pomiędzy zewnętrznym modelem AI a wewnętrznym stanem aplikacji. Architektura ta jest **bezstanowa (stateless)**; serwer nie przechowuje własnej kopii stanu projektu. Zamiast tego, jest on inicjalizowany z zestawem **funkcji zwrotnych (callbacks)**, które pozwalają mu na odpytywanie głównej aplikacji o aktualne dane (np. `getSchematic()`) oraz na wysyłanie żądań aktualizacji (np. `updateSchematic(newData)`) w momencie wywołania narzędzia przez AI.
+
+Zamiast udostępniać całą pamięć programu, serwer eksponuje starannie zdefiniowany zestaw narzędzi (np. `get_kicad_schematic`, `update_kicad_schematic`). Model AI może wywoływać te narzędzia, aby w kontrolowany sposób odczytywać dane i proponować zmiany, a serwer dba o to, aby operacje te były wykonywane na aktualnym stanie aplikacji. Taka architektura zapewnia, że AI operuje na najnowszych danych bez potrzeby ciągłej synchronizacji plików.
+
+### 2.2. Połączenie z Serwerem
 
 - **Endpoint:** `http://localhost:8080/mcp` (konfigurowalny)
 - **Metoda HTTP:** `POST`
@@ -36,7 +44,7 @@ Aplikacja PCBRev komunikuje się z zewnętrznymi modelami AI za pośrednictwem w
 
 Każde zapytanie do serwera musi być poprawnym żądaniem JSON-RPC 2.0 wysłanym metodą POST na podany endpoint.
 
-### 2.2. Protokół Komunikacji
+### 2.3. Protokół Komunikacji
 
 Komunikacja opiera się na standardzie JSON-RPC.
 
@@ -77,7 +85,7 @@ Komunikacja opiera się na standardzie JSON-RPC.
 curl -X POST -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "method": "tools/list", "id": 1, "params": {}}' http://localhost:8080/mcp 
 ```
 
-### 2.3. Dostępne Narzędzia (Tools)
+### 2.4. Dostępne Narzędzia (Tools)
 
 Model AI może interaktywnie korzystać z narzędzi udostępnianych przez serwer. Lista narzędzi jest dynamiczna i można ją uzyskać za pomocą metody `tools/list`. Główne dostępne narzędzia to:
 
@@ -87,7 +95,7 @@ Model AI może interaktywnie korzystać z narzędzi udostępnianych przez serwer
 - **`get_symbol_libraries`**: Pobiera listę dostępnych bibliotek symboli KiCad. Pozwala to AI na dobranie odpowiedniego symbolu graficznego dla rozpoznanego komponentu.
 - **`update_kicad_schematic`**: Stosuje zmiany na schemacie, takie jak dodawanie nowych symboli (komponentów) lub rysowanie nowych połączeń.
 
-### 2.4. Przykładowy Scenariusz Użycia
+### 2.5. Przykładowy Scenariusz Użycia
 
 1.  **Pobranie obrazu do analizy:** AI chce przeanalizować bieżący widok PCB. Wywołuje narzędzie `read_current_image`.
     ```json
