@@ -2,14 +2,22 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:image/image.dart' as img;
-import 'package:http/http.dart' as http;
+import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_deserializer.dart';
+import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_models.dart';
+import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_serializer.dart';
+import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_models.dart';
 
 import '../../pcb_viewer/data/capture_service.dart';
 import 'core.dart';
 import '../domain/mcp_server_tools.dart';
 
-import '../../project/data/project.dart';
+// ============================================================================
+// Type Definitions for Callbacks
+// ============================================================================
 
+typedef GetSchematicCallback = KiCadSchematic? Function();
+typedef UpdateSchematicCallback = void Function(KiCadSchematic);
+typedef GetSymbolLibrariesCallback = List<KiCadLibrary> Function();
 
 // ============================================================================
 // MCP Server Implementation
@@ -18,8 +26,12 @@ import '../../project/data/project.dart';
 class MCPServer {
   late final HttpServer _server;
   final MCPServerConfig config;
-  MCPServerState state;
   final StreamController<String> _logController = StreamController.broadcast();
+
+  // Callbacks to interact with the main application state
+  final GetSchematicCallback getSchematic;
+  final UpdateSchematicCallback updateSchematic;
+  final GetSymbolLibrariesCallback getSymbolLibraries;
 
   final Map<String, dynamic> serverInfo = const {
     'name': 'pcb-reverse-engineering-server',
@@ -29,10 +41,11 @@ class MCPServer {
   Stream<String> get logs => _logController.stream;
 
   MCPServer({
-    MCPServerConfig? config,
-    required Project initialProject,
-  })  : config = config ?? const MCPServerConfig(),
-        state = MCPServerState(currentProject: initialProject);
+    this.config = const MCPServerConfig(),
+    required this.getSchematic,
+    required this.updateSchematic,
+    required this.getSymbolLibraries,
+  });
 
   Future<void> start() async {
     _server = await HttpServer.bind(config.host, config.port);
@@ -43,16 +56,7 @@ class MCPServer {
     }
   }
 
-  void updateProject(Project newProject) {
-    state = state.copyWith(
-      currentProject: newProject,
-      activeImageId: newProject.pcbImages.isNotEmpty ? newProject.pcbImages.last.id : null,
-    );
-    _log('Project state updated. Active image ID: ${state.activeImageId}');
-  }
-
   void _handleHttpRequest(HttpRequest request) async {
-    // NEW: Handle image requests
     if (request.method == 'GET' && request.uri.path.startsWith('/images/')) {
       await _serveImage(request);
       return;
@@ -145,7 +149,6 @@ class MCPServer {
 
   Future<void> _serveImage(HttpRequest request) async {
     final imageName = request.uri.pathSegments.last;
-    // Basic security check
     if (imageName.contains('..')) {
       request.response
         ..statusCode = HttpStatus.forbidden
@@ -201,15 +204,13 @@ class MCPServer {
     };
   }
 
-  Future<Map<String, dynamic>> _handleToolsList(
-      Map<String, dynamic> params) async {
+  Future<Map<String, dynamic>> _handleToolsList(Map<String, dynamic> params) async {
     return {
       'tools': availableTools.map((t) => t.toJson()).toList(),
     };
   }
 
-  Future<Map<String, dynamic>> _handleToolsCall(
-      Map<String, dynamic> params) async {
+  Future<Map<String, dynamic>> _handleToolsCall(Map<String, dynamic> params) async {
     final toolName = params['name'] as String?;
     final arguments = params['arguments'] as Map<String, dynamic>? ?? {};
 
@@ -246,20 +247,16 @@ class MCPServer {
 
   Future<Map<String, dynamic>> _readCurrentImage(
       Map<String, dynamic> args) async {
-    final activeId = state.activeImageId;
-    if (activeId == null) {
-      throw ArgumentError('No active image is set in the application.');
-    }
-
+    // This tool now needs a callback to get the current image bytes.
+    // For now, it will use the existing ViewCaptureService, but ideally
+    // the main app would provide the image bytes via a callback.
     try {
       _log('Requesting view capture from the UI...');
-      // Use a timeout to prevent the server from hanging indefinitely
       final imageBytes = await ViewCaptureService()
           .capture()
           .timeout(const Duration(seconds: 10));
       _log('View capture successful.');
 
-      // Save image to a temporary file
       final tempDir = Directory.systemTemp;
       final imageName =
           'pcb_capture_${DateTime.now().millisecondsSinceEpoch}.png';
@@ -267,7 +264,6 @@ class MCPServer {
       await File(imagePath).writeAsBytes(imageBytes);
       _log('Image saved to temporary file: $imagePath');
 
-      // Construct URL
       final imageUrl = 'http://${config.host}:${config.port}/images/$imageName';
 
       final decodedImage = img.decodeImage(imageBytes);
@@ -275,11 +271,10 @@ class MCPServer {
       final height = decodedImage?.height ?? 0;
 
       return {
-        'image_id': activeId,
         'format': 'png',
         'width': width,
         'height': height,
-        'url': imageUrl, // Return URL instead of base64 data
+        'url': imageUrl,
         'note':
             'The image data is available at the provided URL. The AI model should fetch this URL to get the image.',
       };
@@ -314,75 +309,67 @@ class MCPServer {
 
   Future<Map<String, dynamic>> _getKiCadSchematic(
       Map<String, dynamic> args) async {
-    if (state.schematicModel == null) {
+    final schematic = getSchematic();
+    if (schematic == null) {
       return {
         'error': 'No schematic loaded in the current project.',
       };
     }
-    // In a real implementation, you would use a toJson function.
-    // For now, we return a simplified, placeholder representation.
     return {
-      'schematic': {
-        'version': state.schematicModel!.version,
-        'generator': state.schematicModel!.generator,
-        'symbol_instances_count':
-            state.schematicModel!.symbolInstances.length,
-        'wires_count': state.schematicModel!.wires.length,
-        'junctions_count': state.schematicModel!.junctions.length,
-      }
+      'schematic': kiCadSchematicToJson(schematic),
     };
   }
 
   Future<Map<String, dynamic>> _getSymbolLibraries(
       Map<String, dynamic> args) async {
-    // This is a placeholder. In a real implementation, you would load
-    // the symbol libraries associated with the project.
+    final libraries = getSymbolLibraries();
     return {
-      'libraries': [
-        {
-          'name': 'power',
-          'symbols': [
-            {'name': 'VCC', 'description': 'Power symbol for VCC'},
-            {'name': 'GND', 'description': 'Power symbol for Ground'},
-          ]
-        },
-        {
-          'name': 'device',
-          'symbols': [
-            {'name': 'R', 'description': 'Resistor'},
-            {'name': 'C', 'description': 'Capacitor'},
-            {'name': 'L', 'description': 'Inductor'},
-            {'name': 'D', 'description': 'Diode'},
-          ]
-        }
-      ]
+      'libraries': libraries.map((lib) => kiCadLibraryToJson(lib)).toList(),
     };
   }
 
   Future<Map<String, dynamic>> _updateKiCadSchematic(
       Map<String, dynamic> args) async {
+    final currentSchematic = getSchematic();
+    if (currentSchematic == null) {
+      throw Exception('Cannot update schematic, no schematic is loaded.');
+    }
+
     final updates = args['updates'] as List<dynamic>? ?? [];
     int symbolsAdded = 0;
     int wiresAdded = 0;
 
-    // This is a placeholder implementation.
+    var newSymbolInstances = List<SymbolInstance>.from(currentSchematic.symbolInstances);
+    var newWires = List<Wire>.from(currentSchematic.wires);
+
     for (final update in updates) {
       final action = update['action'] as String;
       final payload = update['payload'] as Map<String, dynamic>;
 
       switch (action) {
-        case 'add_symbol':
-          // final symbol = symbolInstanceFromJson(payload);
-          // state.schematicModel?.symbolInstances.add(symbol);
+        case 'add_symbol_reference':
+          final symbol = symbolInstanceFromJson(payload);
+          newSymbolInstances.add(symbol);
           symbolsAdded++;
           break;
         case 'add_wire':
-          // final wire = wireFromJson(payload);
-          // state.schematicModel?.wires.add(wire);
+          final wire = wireFromJson(payload);
+          newWires.add(wire);
           wiresAdded++;
           break;
+        default:
+          _log('Warning: Unknown update action "$action"');
       }
     }
+
+    final newSchematic = currentSchematic.copyWith(
+      symbolInstances: newSymbolInstances,
+      wires: newWires,
+    );
+
+    updateSchematic(newSchematic);
+    _log(
+        'Schematic updated: $symbolsAdded symbols added, $wiresAdded wires added.');
 
     return {
       'success': true,

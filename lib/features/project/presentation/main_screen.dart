@@ -14,6 +14,7 @@ import '../../measurement/presentation/properties_panel.dart';
 import '../data/project.dart';
 import 'package:pcb_rev/features/pcb_viewer/data/image_processor.dart'
     as image_processor;
+import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_models.dart';
 import '../../symbol_library/data/kicad_schematic_models.dart';
 import '../../symbol_library/data/kicad_schematic_loader.dart';
 import '../../symbol_library/data/kicad_symbol_loader.dart';
@@ -28,15 +29,14 @@ import 'package:uuid/uuid.dart';
 enum ViewMode { pcb, schematic }
 
 class PCBAnalyzerApp extends StatefulWidget {
-  final MCPServer? mcpServer;
-
-  const PCBAnalyzerApp({Key? key, this.mcpServer}) : super(key: key);
+  const PCBAnalyzerApp({Key? key}) : super(key: key);
 
   @override
   _PCBAnalyzerAppState createState() => _PCBAnalyzerAppState();
 }
 
 class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
+  MCPServer? _mcpServer;
   ViewMode _currentView = ViewMode.pcb;
   Project? currentProject;
   int _currentImageIndex = 0;
@@ -56,14 +56,31 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void initState() {
     super.initState();
     print('Initializing PCB Analyzer App...');
+    _initializeServer();
     _initializeProject();
     _loadDefaultSymbolLibrary();
   }
 
-  void _updateServerProject() {
-    if (widget.mcpServer != null && currentProject != null) {
-      widget.mcpServer!.updateProject(currentProject!);
-    }
+  void _initializeServer() {
+    _mcpServer = MCPServer(
+      getSchematic: () => _loadedSchematic,
+      updateSchematic: (newSchematic) {
+        setState(() {
+          _loadedSchematic = newSchematic;
+        });
+      },
+      getSymbolLibraries: () {
+        final List<KiCadLibrary> libs = [];
+        if (_symbolLoader != null) {
+          // This is a simplification. In a real app, you'd manage a list of loaders.
+        }
+        if (_loadedSchematic?.library != null) {
+          libs.add(_loadedSchematic!.library!);
+        }
+        return libs;
+      },
+    );
+    _mcpServer!.start();
   }
 
   void _initializeProject() {
@@ -77,7 +94,6 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         'schematicFilePath': null, // No schematic loaded initially
         'pcbImages': <dynamic>[],
       });
-      _updateServerProject();
     });
   }
 
@@ -298,7 +314,6 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         }
         if (currentProject != null) {
           currentProject = currentProject!.copyWith(schematicFilePath: path);
-          _updateServerProject();
         }
       });
     } catch (e) {
@@ -421,7 +436,6 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         currentProject = project;
         _currentView = ViewMode.pcb; // Switch to pcb view to show the new image
         _currentImageIndex = project.pcbImages.length - 1;
-        _updateServerProject();
         print('[MainScreen] Final project state updated.');
       });
     } catch (e) {
@@ -708,7 +722,6 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         _currentImageIndex = 0;
         _loadedSchematic = null;
         _currentView = ViewMode.pcb;
-        _updateServerProject();
       });
 
       if (project.schematicFilePath != null) {

@@ -5,11 +5,13 @@
 sealed class KiCadElement {}
 
 final class KiCadLibrary extends KiCadElement {
+  final String? name; // Not part of the file format, but useful for tracking.
   final String version;
   final String generator;
   final List<LibrarySymbol> librarySymbols;
 
   KiCadLibrary({
+    this.name,
     required this.version,
     required this.generator,
     required this.librarySymbols,
