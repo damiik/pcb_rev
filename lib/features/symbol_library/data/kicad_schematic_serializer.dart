@@ -109,6 +109,30 @@ Map<String, dynamic> librarySymbolToJson(LibrarySymbol symbol) {
     'on_board': symbol.onBoard,
     'properties_count': symbol.properties.length,
     'units_count': symbol.units.length,
+    'units': symbol.units.map((e) => symbolUnitToJson(e)).toList(),
+  };
+}
+
+Map<String, dynamic> symbolUnitToJson(SymbolUnit unit) {
+  return {
+    'name': unit.name,
+    'unit_number': unit.unitNumber,
+    'pins': unit.pins.map((e) => pinToJson(e)).toList(),
+    'graphics_count': unit.graphics.length,
+  };
+}
+
+Map<String, dynamic> pinToJson(Pin pin) {
+  return {
+    'type': pin.type.name,
+    'style': pin.style.name,
+    'position': positionToJson(pin.position),
+    'angle': pin.angle,
+    'length': pin.length,
+    'name': pin.name,
+    'number': pin.number,
+    'name_effects': textEffectsToJson(pin.nameEffects),
+    'number_effects': textEffectsToJson(pin.numberEffects),
   };
 }
 
