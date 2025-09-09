@@ -99,4 +99,8 @@ class KiCadLibrarySymbolLoader {
   LibrarySymbol? getSymbolByName(String symbolName) {
     return _symbolCache[symbolName];
   }
+
+  List<LibrarySymbol> getSymbols() {
+    return _symbolCache.values.toList();
+  }
 }

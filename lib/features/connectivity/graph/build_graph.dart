@@ -15,8 +15,12 @@ ConnectivityGraph buildGraph({
 
   // 1. Piny symboli
   for (final instance in schematic.symbolInstances) {
-    final libSymbol = library.librarySymbols
-        .firstWhere((s) => s.name == instance.libId.split(':').last);
+    final libSymbol = library.librarySymbols.firstWhere(
+      (s) => s.name == instance.libId,
+      orElse: () => throw Exception(
+        'Symbol definition not found for "${instance.libId}". The library provided to ConnectivityAdapter is missing this symbol.',
+      ),
+    );
 
     for (final unit in libSymbol.units) {
       for (final pin in unit.pins) {

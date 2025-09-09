@@ -25,6 +25,9 @@ import '../../symbol_library/domain/kicad_schematic_writer.dart';
 import '../../ai_integration/data/mcp_server.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../connectivity/domain/connectivity_adapter.dart';
+import '../../connectivity/models/connectivity.dart';
+
 
 enum ViewMode { pcb, schematic }
 
@@ -51,6 +54,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   String? _selectedSymbolInstanceId;
   SymbolInstance? _selectedSymbolInstance;
   kicad_symbol_models.LibrarySymbol? _selectedLibrarySymbol;
+  Connectivity? _connectivity;
 
   @override
   void initState() {
@@ -68,6 +72,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         setState(() {
           _loadedSchematic = newSchematic;
         });
+        _updateConnectivity();
       },
       getSymbolLibraries: () {
         final List<KiCadLibrary> libs = [];
@@ -119,6 +124,40 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
     if (await file.exists()) {
       await _loadSchematicFile(defaultSchematicPath);
+    }
+  }
+
+  void _updateConnectivity() {
+    if (_loadedSchematic != null && _symbolLoader != null) {
+      // Combine symbols from the schematic's library and the external loader
+      final allSymbols = <kicad_symbol_models.LibrarySymbol>[];
+      if (_loadedSchematic!.library != null) {
+        allSymbols.addAll(_loadedSchematic!.library!.librarySymbols);
+      }
+      allSymbols.addAll(_symbolLoader!.getSymbols());
+
+      // Create a new library with all symbols, removing duplicates
+      final uniqueSymbols = <kicad_symbol_models.LibrarySymbol>[];
+      final seenNames = <String>{};
+      for (final symbol in allSymbols) {
+        if (seenNames.add(symbol.name)) {
+          uniqueSymbols.add(symbol);
+        }
+      }
+
+      final completeLibrary = kicad_symbol_models.KiCadLibrary(
+        version: _loadedSchematic?.version ?? '20210101',
+        generator: _loadedSchematic?.generator ?? 'pcb_rev',
+        librarySymbols: uniqueSymbols,
+      );
+
+      final connectivity = ConnectivityAdapter.fromSchematic(
+        _loadedSchematic!,
+        completeLibrary,
+      );
+      setState(() {
+        _connectivity = connectivity;
+      });
     }
   }
 
@@ -315,6 +354,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         if (currentProject != null) {
           currentProject = currentProject!.copyWith(schematicFilePath: path);
         }
+        _updateConnectivity();
       });
     } catch (e) {
       print('Error loading schematic file: $e');
@@ -395,6 +435,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         setState(() {
           _loadedSchematic!.symbolInstances[symbolIndex].properties[propertyIndex] = updatedProperty;
         });
+        _updateConnectivity();
       }
     }
   }
@@ -535,6 +576,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     setState(() {
       _loadedSchematic = _loadedSchematic!.copyWith(symbolInstances: updatedInstances);
     });
+    _updateConnectivity();
   }
 
   String _generateNewRef(String prefix) {
@@ -645,6 +687,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     setState(() {
       _loadedSchematic = _loadedSchematic!.copyWith(symbolInstances: updatedInstances);
     });
+    _updateConnectivity();
   }
 
   void _addMeasurement(String type, dynamic value) {
