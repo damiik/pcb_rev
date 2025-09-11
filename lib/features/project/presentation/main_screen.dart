@@ -84,6 +84,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         }
         return libs;
       },
+      getConnectivity: () => _connectivity,
     );
     _mcpServer!.start();
   }

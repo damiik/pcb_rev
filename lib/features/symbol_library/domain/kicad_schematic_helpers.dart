@@ -15,11 +15,6 @@ import '../data/kicad_symbol_models.dart';
 ///
 /// Returns an [Offset] with the absolute (x, y) coordinates of the pin.
 Offset getPinAbsolutePosition(SymbolInstance instance, Pin pin) {
-  final ix = instance.at.x;
-  final iy = instance.at.y;
-  final rotationDegrees = instance.at.angle;
-  final mirrorX = instance.mirrorx;
-  final mirrorY = instance.mirrory;
 
   final px = pin.position.x;
   final py = pin.position.y;
@@ -27,24 +22,32 @@ Offset getPinAbsolutePosition(SymbolInstance instance, Pin pin) {
   // Transformation factors from renderer logic.
   // Note: mirrorY flips horizontally (around Y-axis), affecting the X coordinate.
   //       mirrorX flips vertically (around X-axis), affecting the Y coordinate.
-  final mx = mirrorY ? -1.0 : 1.0;
-  final my = mirrorX ? -1.0 : 1.0;
+  final mx = instance.mirrory ? -1.0 : 1.0;
+  final my = instance.mirrorx ? -1.0 : 1.0;
 
-  final rotRad = rotationDegrees * (math.pi / 180.0);
+  // The transformation pipeline must match the renderer's canvas operations exactly.
+  // 1. Apply mirroring to the pin's relative coordinates.
+  // 2. Apply rotation.
+  // 3. Apply translation (the instance's position).
+  // The Y-coordinate is inverted because KiCad's schematic editor has a Y-down coordinate system,
+  // but the symbol definitions have Y-up.
 
-  // The transformation pipeline mimics the canvas operations seen in the renderer.
-  // The formula is a direct calculation of the transformation matrix applied to the pin's relative coordinates.
-  // It combines Y-inversion for KiCad's coordinate system, rotation, mirroring, and finally translation.
-  //
-  // Formula derived from renderer's canvas operations:
-  // p_final_x = (px*cos(rot) - py*sin(rot)) * mx + ix
-  // p_final_y = (-px*sin(rot) - py*cos(rot)) * my + iy
+  final transformedPx = px * mx; // Apply mirror
+  final transformedPy = py * my; // Apply mirror
 
+  final rotRad = instance.at.angle * (math.pi / 180.0); // Convert degrees to radians and invert for Y-down
   final cosRot = math.cos(rotRad);
   final sinRot = math.sin(rotRad);
 
-  final pFinalX = (px * cosRot - py * sinRot) * mx + ix;
-  final pFinalY = (-px * sinRot - py * cosRot) * my + iy;
+  // Apply rotation to the transformed (mirrored) point
+  // x′ = x⋅cos(a)−y⋅sin(a)
+  // y′ = x⋅sin(a)+y⋅cos(a)
+  final rotatedX = transformedPx * cosRot - transformedPy * sinRot;
+  final rotatedY = -transformedPx * sinRot - transformedPy * cosRot;   // y is inverted
+
+  // Translate to the final absolute position
+  final pFinalX = rotatedX + instance.at.x;
+  final pFinalY = rotatedY + instance.at.y;
 
   return Offset(pFinalX, pFinalY);
 }

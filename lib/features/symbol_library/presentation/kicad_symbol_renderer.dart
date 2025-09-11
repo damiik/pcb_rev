@@ -360,6 +360,8 @@ class KiCadSymbolRenderer {
 
     canvas.drawLine(startPos, endPos, paint);
 
+    // canvas.drawCircle(startPos, 0.2, paint);  // connection point!
+
     // Pin text will be drawn separately outside canvas transformations to avoid mirroring
   }
 

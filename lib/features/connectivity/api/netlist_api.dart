@@ -1,6 +1,18 @@
 import 'dart:convert';
 import '../models/core.dart';
 
+
+
+String pin2str (Pin p) => switch ((p.isPowerPin, p.isInputPin, p.isOutputPin)) {
+  (true, false, false) => 'power',
+  (false, true, false) => 'input',
+  (false, false, true) => 'output',
+  (true, true, false) => 'power-input',
+  (true, false, true) => 'power-output',
+  (false, true, true) => 'bidirectional',
+  _ => 'unknown',
+};
+
 /// Generuje netlistę w formacie JSON gotowym do wysłania przez MCP-server.
 ///
 /// - Przechodzi przez wszystkie subgraphy w `ConnectivityGraph`
@@ -20,7 +32,7 @@ String getNetlist(ConnectivityGraph graph) {
         pins.add({
           "symbolRef": item.symbolRef,
           "pinName": item.pinName,
-          "pinType": item.isOutputPin ? "output" : item.isInputPin ? "input" : item.isPowerPin ? "power" : "unknown", // można uzupełnić z biblioteki symboli
+          "pinType": pin2str(item)
         });
       }
     }
@@ -58,7 +70,7 @@ List<Map<String, dynamic>> _collectSymbols(ConnectivityGraph graph) {
       symbols.putIfAbsent(ref, () {
         return {
           "ref": ref,
-          "libraryId": "TODO:resolveFromLibrary", // placeholder
+          "libraryId": item.libraryId, // Use the libraryId from the pin
           "pins": [],
           "position": {
             "x": item.position.x,
@@ -69,7 +81,7 @@ List<Map<String, dynamic>> _collectSymbols(ConnectivityGraph graph) {
 
       (symbols[ref]!["pins"] as List).add({
         "name": item.pinName,
-        "type": item.isOutputPin ? "output" : item.isInputPin ? "input" : item.isPowerPin ? "power" : "unknown", // można uzupełnić z biblioteki symboli
+        "type": pin2str(item),
         "position": {
           "x": item.position.x,
           "y": item.position.y,

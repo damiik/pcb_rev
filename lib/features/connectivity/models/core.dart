@@ -61,7 +61,7 @@ class ConnectivityGraph {
     for (final e in nets.entries) {
       newNets[e.key] = Net(
         e.value.name,
-        e.value.pins.map((p) => Pin(p.id, p.position, p.symbolRef, p.pinName)).toList(),
+        e.value.pins.map((p) => Pin(p.id, p.position, p.symbolRef, p.pinName, p.libraryId)).toList(),
       );
     }
 
@@ -104,6 +104,7 @@ sealed class ConnectionItem {
           pos,
           p.symbolRef,
           p.pinName,
+          p.libraryId,
           isPowerPin: p.isPowerPin,
           isOutputPin: p.isOutputPin,
           isInputPin: p.isInputPin,
@@ -133,11 +134,12 @@ class Junction extends ConnectionItem {
 class Pin extends ConnectionItem {
   final String symbolRef;
   final String pinName;
+  final String libraryId;
   bool isPowerPin = false; // czy pin jest pinem zasilania (np. VCC, GND)
   bool isOutputPin = false; // czy pin jest pinem wyjściowym (np. sygnał)
   bool isInputPin = false;  // czy pin jest pinem wejściowym (np. sygnał)
 
-  Pin(super.id, super.position, this.symbolRef, this.pinName, {
+  Pin(super.id, super.position, this.symbolRef, this.pinName, this.libraryId, {
     this.isPowerPin = false,
     this.isOutputPin = false,
     this.isInputPin = false,

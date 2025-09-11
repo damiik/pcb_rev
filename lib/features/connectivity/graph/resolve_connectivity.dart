@@ -1,44 +1,55 @@
 import '../models/core.dart';
 
 /// Oblicza nets poprzez flood-fill na grafie.
+/// resolveConnectivity jako parametr przyjmie ConnectivityGraph graph 
+/// i wypełnia graph.subgraphs, a potem z nich buduje List<Net>.
 List<Net> resolveConnectivity(ConnectivityGraph graph) {
-  final nets = <Net>[];
+  graph.subgraphs.clear();
   final visited = <String>{};
-  var netIndex = 1;
+  var ix = 0;
+  final nets = <Net>[];
 
   for (final item in graph.items.values) {
     if (visited.contains(item.id)) continue;
 
     final stack = <ConnectionItem>[item];
-    final group = <ConnectionItem>[];
+    final sub = ConnectionSubgraph(id: 'sg_$ix', itemIds: <String>{});
+    ix++;
 
     while (stack.isNotEmpty) {
-      final current = stack.removeLast();
-      if (visited.contains(current.id)) continue;
+      final cur = stack.removeLast();
+      if (visited.contains(cur.id)) continue;
+      visited.add(cur.id);
+      sub.itemIds.add(cur.id);
 
-      visited.add(current.id);
-      group.add(current);
-
-      final neighbors = graph.getNeighbors(current.id);
-      for (final n in neighbors) {
-        if (!visited.contains(n.id)) stack.add(n);
+      for (final nb in graph.getNeighbors(cur.id)) {
+        if (!visited.contains(nb.id)) stack.add(nb);
       }
     }
 
-    // Resolve net name: prefer labels, fallback to auto
-    final label = group.whereType<Label>().firstOrNull;
-    final netName = label?.netName ?? 'Net-$netIndex';
+    graph.subgraphs.add(sub);
 
-    final pins = group.whereType<Pin>().toList();
+    // Rozwiąż nazwę netu dla subgraph (tymczasowo)
+    // prefer label, potem power pin, inaczej auto
+    String? netName;
+    for (final id in sub.itemIds) {
+      final it = graph.items[id];
+      if (it is Label) { netName = it.netName; break; }
+    }
+    if (netName == null) {
+      for (final id in sub.itemIds) {
+        final it = graph.items[id];
+        if (it is Pin && it.isPowerPin) { netName = it.pinName; break; }
+      }
+    }
+    final finalName = netName ?? 'Net-$ix';
 
-    nets.add(Net(netName, pins));
-
-    netIndex++;
+    final pins = sub.itemIds.map((id) => graph.items[id]).whereType<Pin>().toList();
+    nets.add(Net(finalName, pins));
   }
 
   return nets;
 }
-
 
 
 
