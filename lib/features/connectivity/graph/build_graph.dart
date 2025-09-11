@@ -116,20 +116,80 @@ ConnectivityGraph buildGraph({
     }
   }
 
-  // Ponadto: wykryj przecięcia segmentów i połącz (można zoptymalizować)
+  // Wykryj przecięcia segmentów, ale połącz je TYLKO jeśli w punkcie przecięcia
+  // jest faktyczny Junction (kropka) lub inny element na tym punkcie.
+  // Dzięki temu zachowujemy zgodność z KiCad: crossing without dot != connected.
   final wires = items.values.whereType<Wire>().toList();
   for (var i = 0; i < wires.length; i++) {
     for (var j = i + 1; j < wires.length; j++) {
       final a = wires[i];
       final b = wires[j];
-      if (segmentsIntersect(a.position, a.end, b.position, b.end)) {
+
+      if (!segmentsIntersect(a.position, a.end, b.position, b.end)) continue;
+
+      // Sprawdź, czy istnieje Junction leżący jednocześnie na obu segmentach.
+      // Jeśli tak -> traktujemy jako rzeczywiste połączenie.
+      var intersectionHasJunction = false;
+
+      for (final it in items.values) {
+        if (it is Junction) {
+          if (pointOnSegment(it.position, a.position, a.end) &&
+              pointOnSegment(it.position, b.position, b.end)) {
+            intersectionHasJunction = true;
+            break;
+          }
+        }
+      }
+
+      if (intersectionHasJunction) {
         adjacencyMap.putIfAbsent(a.id, () => {}).add(b.id);
         adjacencyMap.putIfAbsent(b.id, () => {}).add(a.id);
       }
+      // w przeciwnym razie nic nie łączymy — wires przecinają się geometrycznie
+      // ale nie mają kropki => nie są połączone elektrycznie.
+    }
+  }
+  // ... po sekcji wykrywania przecięć z junctionami ...
+
+  // === Łączenie elementów przez etykiety tekstowe ===
+  //
+  // W KiCad etykiety (Label, GlobalLabel) o tym samym napisie są połączone
+  // elektrycznie, niezależnie od położenia na schemacie.
+  final labelsByName = <String, List<ConnectionItem>>{};
+
+  // Zbierz wszystkie etykiety lokalne i globalne
+  for (final item in items.values) {
+    if (item is Label /* lokalna */ /* || item is GlobalLabel */ /* globalna */) {
+      final text = (item as dynamic).netName as String;
+      labelsByName.putIfAbsent(text, () => []).add(item);
     }
   }
 
+  // Dla każdej grupy etykiet o tej samej nazwie
+  for (final entry in labelsByName.entries) {
+    final labelList = entry.value;
+    if (labelList.length < 2) continue; // nic do łączenia
 
+    // Zbierz wszystkie elementy połączone fizycznie z tymi etykietami
+    final connectedIds = <String>{};
+    for (final label in labelList) {
+      final neighbors = adjacencyMap[label.id];
+      if (neighbors != null) {
+        connectedIds.addAll(neighbors);
+      }
+    }
+
+    // Połącz wszystko razem w pełny graf
+    final allIds = connectedIds.toList();
+    for (var i = 0; i < allIds.length; i++) {
+      for (var j = i + 1; j < allIds.length; j++) {
+        final a = allIds[i];
+        final b = allIds[j];
+        adjacencyMap.putIfAbsent(a, () => {}).add(b);
+        adjacencyMap.putIfAbsent(b, () => {}).add(a);
+      }
+    }
+  }
 
   // 5. Tworzymy ConnectivityGraph
   return ConnectivityGraph(

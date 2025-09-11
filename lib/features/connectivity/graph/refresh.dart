@@ -94,7 +94,20 @@ void _connectNewWire(ConnectivityGraph graph, Wire wire) {
 
     if (other is Wire &&
         segmentsIntersect(wire.position, wire.end, other.position, other.end)) {
-      _ensureConnected(wire.id, other.id);
+      // Podobnie jak wyżej: łącz tylko, gdy istnieje Junction na przecięciu
+      var hasJunctionAtIntersection = false;
+      for (final it in graph.items.values) {
+        if (it is Junction) {
+          if (pointOnSegment(it.position, wire.position, wire.end) &&
+              pointOnSegment(it.position, other.position, other.end)) {
+            hasJunctionAtIntersection = true;
+            break;
+          }
+        }
+      }
+      if (hasJunctionAtIntersection) {
+        _ensureConnected(wire.id, other.id);
+      }
     }
   }
 }
