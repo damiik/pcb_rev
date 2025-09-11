@@ -90,4 +90,40 @@ final List<ToolDefinition> availableTools = [
       'required': ['updates'],
     },
   ),
+  ToolDefinition(
+    name: 'get_netlist',
+    description:
+        'Returns the current netlist, derived from the connectivity graph. Includes a list of nets and the pins they connect.',
+    inputSchema: {
+      'type': 'object',
+      'properties': {},
+    },
+  ),
+  ToolDefinition(
+    name: 'get_symbol_instances',
+    description:
+        'Returns all symbol instances from the schematic, including their properties, pins, and positions.',
+    inputSchema: {
+      'type': 'object',
+      'properties': {},
+    },
+  ),
+  ToolDefinition(
+    name: 'get_connectivity_graph',
+    description:
+        'Returns the raw connectivity graph, showing all items (wires, junctions, pins, labels) and their geometric connections.',
+    inputSchema: {
+      'type': 'object',
+      'properties': {},
+    },
+  ),
+  ToolDefinition(
+    name: 'get_labels_and_ports',
+    description:
+        'Returns a list of all labels and hierarchical ports on the schematic.',
+    inputSchema: {
+      'type': 'object',
+      'properties': {},
+    },
+  ),
 ];

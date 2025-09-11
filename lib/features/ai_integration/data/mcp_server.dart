@@ -7,6 +7,9 @@ import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_models.dart
 import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_serializer.dart';
 import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_models.dart';
 
+import '../../connectivity/models/connectivity.dart';
+import '../../connectivity/api/netlist_api.dart' as netlist_api;
+import '../../connectivity/models/core.dart' as connectivity_models;
 import '../../pcb_viewer/data/capture_service.dart';
 import 'core.dart';
 import '../domain/mcp_server_tools.dart';
@@ -18,6 +21,7 @@ import '../domain/mcp_server_tools.dart';
 typedef GetSchematicCallback = KiCadSchematic? Function();
 typedef UpdateSchematicCallback = void Function(KiCadSchematic);
 typedef GetSymbolLibrariesCallback = List<KiCadLibrary> Function();
+typedef GetConnectivityCallback = Connectivity? Function();
 
 // ============================================================================
 // MCP Server Implementation
@@ -32,6 +36,7 @@ class MCPServer {
   final GetSchematicCallback getSchematic;
   final UpdateSchematicCallback updateSchematic;
   final GetSymbolLibrariesCallback getSymbolLibraries;
+  final GetConnectivityCallback getConnectivity;
 
   final Map<String, dynamic> serverInfo = const {
     'name': 'pcb-reverse-engineering-server',
@@ -45,6 +50,7 @@ class MCPServer {
     required this.getSchematic,
     required this.updateSchematic,
     required this.getSymbolLibraries,
+    required this.getConnectivity,
   });
 
   Future<void> start() async {
@@ -243,6 +249,10 @@ class MCPServer {
             'get_kicad_schematic': _getKiCadSchematic,
             'get_symbol_libraries': _getSymbolLibraries,
             'update_kicad_schematic': _updateKiCadSchematic,
+            'get_netlist': _getNetlist,
+            'get_connectivity_graph': _getConnectivityGraph,
+            'get_symbol_instances': _getSymbolInstances,
+            'get_labels_and_ports': _getLabelsAndPorts,
           };
 
   Future<Map<String, dynamic>> _readCurrentImage(
@@ -378,6 +388,68 @@ class MCPServer {
         'wires_added': wiresAdded,
       },
       'timestamp': DateTime.now().toIso8601String(),
+    };
+  }
+
+  Future<Map<String, dynamic>> _getNetlist(Map<String, dynamic> args) async {
+    final connectivity = getConnectivity();
+    if (connectivity == null) {
+      return {
+        'error': 'Connectivity data not available. Is a schematic loaded?',
+      };
+    }
+    final netlistJson = netlist_api.getNetlist(connectivity.graph);
+    return jsonDecode(netlistJson) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> _getConnectivityGraph(
+      Map<String, dynamic> args) async {
+    final connectivity = getConnectivity();
+    if (connectivity == null) {
+      return {
+        'error': 'Connectivity data not available. Is a schematic loaded?',
+      };
+    }
+    final graphJson = netlist_api.getConnectivityGraph(connectivity.graph);
+    return jsonDecode(graphJson) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> _getSymbolInstances(
+      Map<String, dynamic> args) async {
+    final schematic = getSchematic();
+    if (schematic == null) {
+      return {
+        'error': 'No schematic loaded.',
+      };
+    }
+    return {
+      'symbol_instances': schematic.symbolInstances
+          .map((inst) => symbolInstanceToJson(inst))
+          .toList(),
+    };
+  }
+
+  Future<Map<String, dynamic>> _getLabelsAndPorts(
+      Map<String, dynamic> args) async {
+    final connectivity = getConnectivity();
+    if (connectivity == null) {
+      return {
+        'error': 'Connectivity data not available. Is a schematic loaded?',
+      };
+    }
+    final labels = connectivity.graph.items.values
+        .whereType<connectivity_models.Label>()
+        .map((label) => {
+              'id': label.id,
+              'text': label.netName,
+              'position': {'x': label.position.x, 'y': label.position.y},
+            })
+        .toList();
+
+    // Ports are not implemented yet, returning empty list
+    return {
+      'labels': labels,
+      'ports': [],
     };
   }
 
