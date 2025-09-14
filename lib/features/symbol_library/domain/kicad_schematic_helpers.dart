@@ -4,11 +4,27 @@ import 'dart:math' as math;
 import '../data/kicad_schematic_models.dart';
 import '../data/kicad_symbol_models.dart';
 
+/// Pomocnicza funkcja do pobierania czytelnego deskryptora (np. "R1") na podstawie UUID instancji.
+String getSymbolDesignator(KiCadSchematic schematic, String symbolRef) {
+
+  final matching = schematic.symbolInstances.where((inst) => inst.uuid == symbolRef);
+  if (matching.isEmpty) return symbolRef;
+  
+  final refP = matching.first.properties.where((prop) => prop.name == 'Reference');
+  if (refP.isEmpty) return symbolRef;
+  return refP.first.value;
+}
+
+
 /// Calculates the absolute position of a symbol pin on the schematic.
 ///
 /// Takes into account the symbol's position, rotation, and mirroring.
 /// The calculation logic is derived from the rendering transformations in
-/// `kicad_symbol_renderer.dart` to ensure consistency.
+/// `kicad_symbol_renderer.dart` to ensure consistency but remember:
+/// - coordinates of instance.at is Y-growup-down, and must be flipped in renderer!
+/// - symbol definition is Y-growup-up so is not flipped in renderer!
+/// - this function returns Y-growup-down coordinates, as used in the schematic editor and then can't be flipped!
+/// - symbol definition is Y-growup-up, so symbol pins y offsets must be flipped here to Y-growup-down system!
 ///
 /// - [instance]: The symbol instance on the schematic.
 /// - [pin]: The pin definition from the symbol library.
@@ -20,10 +36,10 @@ Offset getPinAbsolutePosition(SymbolInstance instance, Pin pin) {
   final py = pin.position.y;
 
   // Transformation factors from renderer logic.
-  // Note: mirrorY flips horizontally (around Y-axis), affecting the X coordinate.
-  //       mirrorX flips vertically (around X-axis), affecting the Y coordinate.
-  final mx = instance.mirrory ? -1.0 : 1.0;
-  final my = instance.mirrorx ? -1.0 : 1.0;
+  // Note: mirrorX flips around X-axis, affecting the Y coordinate.
+  //       mirrorY flips around Y-axis, affecting the X coordinate.
+  final mx = instance.mirrorx ? -1.0 : 1.0;
+  final my = instance.mirrory ? -1.0 : 1.0;
 
   // The transformation pipeline must match the renderer's canvas operations exactly.
   // 1. Apply mirroring to the pin's relative coordinates.
@@ -32,22 +48,31 @@ Offset getPinAbsolutePosition(SymbolInstance instance, Pin pin) {
   // The Y-coordinate is inverted because KiCad's schematic editor has a Y-down coordinate system,
   // but the symbol definitions have Y-up.
 
-  final transformedPx = px * mx; // Apply mirror
-  final transformedPy = py * my; // Apply mirror
+  // final rotRad = instance.at.angle * (math.pi / 180.0); // Convert degrees to radians and invert for Y-down
+  // final cosRot = math.cos(rotRad);
+  // final sinRot = math.sin(rotRad);
+
+  // Don't apply rotation to the transformed (mirrored) point!
+  // // x′ = x⋅cos(a)−y⋅sin(a)
+  // // y′ = x⋅sin(a)+y⋅cos(a)
 
   final rotRad = instance.at.angle * (math.pi / 180.0); // Convert degrees to radians and invert for Y-down
   final cosRot = math.cos(rotRad);
   final sinRot = math.sin(rotRad);
 
-  // Apply rotation to the transformed (mirrored) point
+  // First (!) apply rotation to the point
   // x′ = x⋅cos(a)−y⋅sin(a)
   // y′ = x⋅sin(a)+y⋅cos(a)
-  final rotatedX = transformedPx * cosRot - transformedPy * sinRot;
-  final rotatedY = -transformedPx * sinRot - transformedPy * cosRot;   // y is inverted
+  final rotatedX = px * cosRot - py * sinRot;
+  final rotatedY = -px * sinRot - py * cosRot;   // y is inverted (instance.at is Y-growup-down, symbol definition is Y-growup-up so have to be inverted here)
 
-  // Translate to the final absolute position
-  final pFinalX = rotatedX + instance.at.x;
-  final pFinalY = rotatedY + instance.at.y;
+  // Apply mirroring to the pin's relative coordinates.
+  final mirroredX = rotatedX * my; // Apply mirror y to x coordinate
+  final mirroredY = rotatedY * mx; // Apply mirror x to y coordinate
+  
+  // Translate to the final absolute position (agreed with schematic editor y-group-down coordinates).
+  final pFinalX = mirroredX + instance.at.x;
+  final pFinalY = mirroredY + instance.at.y;
 
   return Offset(pFinalX, pFinalY);
 }

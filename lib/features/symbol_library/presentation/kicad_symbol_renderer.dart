@@ -36,6 +36,7 @@ class KiCadSymbolRenderer {
 
     // Apply mirroring first, then rotation
     // Mirroring should be applied before rotation for correct transformation
+    // KiCad mirror x mirrors around X-axis (changes y coords), mirror y around Y-axis (changes x coords)
     final mx = mirrorY ? -1.0 : 1.0;
     final my = mirrorX ? -1.0 : 1.0;
     canvas.scale(mx, my);
