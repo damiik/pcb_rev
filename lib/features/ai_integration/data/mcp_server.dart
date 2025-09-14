@@ -402,8 +402,8 @@ class MCPServer {
     return jsonDecode(netlistJson) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> _getConnectivityGraph(
-      Map<String, dynamic> args) async {
+  Future<Map<String, dynamic>> _getConnectivityGraph(Map<String, dynamic> args) async {
+    
     final connectivity = getConnectivity();
     if (connectivity == null) {
       return {

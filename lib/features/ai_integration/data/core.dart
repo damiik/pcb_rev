@@ -1,8 +1,3 @@
-import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_models.dart';
-
-import '../../project/data/project.dart';
-
-
 // ============================================================================
 // JSON-RPC 2.0 Types
 // ============================================================================

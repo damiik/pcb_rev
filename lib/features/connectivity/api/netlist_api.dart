@@ -19,36 +19,35 @@ String pin2str (Pin p) => switch ((p.isPowerPin, p.isInputPin, p.isOutputPin)) {
 /// - Rozwiązuje nazwę netu (label lub auto-generated)
 /// - Zbiera wszystkie piny
 /// - Zwraca serializowany JSON
+/// - TODO: dodać labels, global labels, itp.
 String getNetlist(ConnectivityGraph graph) {
   final nets = <Map<String, dynamic>>[];
 
   for (final subgraph in graph.subgraphs) {
     final netName = subgraph.resolvedNetName ?? _autoNetName(subgraph);
-    final pins = <Map<String, dynamic>>[];
+    final pins = <String>[];
 
     for (final itemId in subgraph.itemIds) {
       final item = graph.items[itemId];
       if (item is Pin) {
-        pins.add({
-          "symbolRef": item.symbolRef,
-          "pinName": item.pinName,
-          "pinType": pin2str(item)
-        });
+        pins.add("${item.symbolDesignator}.${item.pinName}");
       }
     }
 
     nets.add({
-      "name": netName,
+      "net": netName,
       "pins": pins,
     });
   }
 
   // Dodatkowo można dołączyć listę symboli
   final symbols = _collectSymbols(graph);
+  // final labels = _collectLabels(graph); // TODO: Implement labels collection
 
   final netlistJson = {
     "nets": nets,
     "symbols": symbols,
+    // "labels": labels,
   };
 
   return const JsonEncoder.withIndent('  ').convert(netlistJson);
@@ -69,7 +68,8 @@ List<Map<String, dynamic>> _collectSymbols(ConnectivityGraph graph) {
       final ref = item.symbolRef;
       symbols.putIfAbsent(ref, () {
         return {
-          "ref": ref,
+          // "ref": ref,
+          "designator": item.symbolDesignator,
           "libraryId": item.libraryId, // Use the libraryId from the pin
           "pins": [],
           "position": {
@@ -82,10 +82,10 @@ List<Map<String, dynamic>> _collectSymbols(ConnectivityGraph graph) {
       (symbols[ref]!["pins"] as List).add({
         "name": item.pinName,
         "type": pin2str(item),
-        "position": {
-          "x": item.position.x,
-          "y": item.position.y,
-        }
+        // "position": {
+        //   "x": item.position.x,
+        //   "y": item.position.y,
+        // }
       });
     }
   }
@@ -145,6 +145,7 @@ Map<String, dynamic> _serializeItem(ConnectionItem item) {
       "type": "pin",
       "position": {"x": item.position.x, "y": item.position.y},
       "symbolRef": item.symbolRef,
+      "symbolDesignator": item.symbolDesignator,
       "pinName": item.pinName,
 
     };

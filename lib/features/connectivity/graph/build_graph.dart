@@ -31,9 +31,11 @@ ConnectivityGraph buildGraph({
         int x = mm2mill(pos.dx); // convert from mm to mils
         int y = mm2mill(pos.dy); // convert from mm to mils
 
-        print ('Pin ${pin.name} of ${instance.libId} at ($x, $y)');
+        final pinName = pin.name.isEmpty || pin.name == "~" ? pin.number : pin.name;
+
+        print ('Pin ${pinName} of ${instance.libId} at ($x, $y)');
         final id = '${instance.uuid}:${pin.number}';
-        items[id] = Pin(id, Point(x, y), instance.uuid, pin.name, instance.libId,
+        items[id] = Pin(id, Point(x, y), instance.uuid, pinName, instance.libId, getSymbolDesignator(schematic, instance.uuid),
           isPowerPin: pin.type == kicad_symbol.PinType.powerIn || pin.type == kicad_symbol.PinType.powerOut,
           isOutputPin: pin.type == kicad_symbol.PinType.output || pin.type == kicad_symbol.PinType.bidirectional,
           isInputPin: pin.type == kicad_symbol.PinType.input || pin.type == kicad_symbol.PinType.bidirectional,
