@@ -174,9 +174,15 @@ Moduł wspiera **inkrementalne odświeżanie**:
 
 * `addWire(Point start, Point end)`
 * `addJunction(Point position)`
-* `addSymbol(String libraryId, Point position)`
+* `addSymbolInstance(String libraryId, Point position)`
 * `addLabel(Point position, String netName)`
-* `deleteItem(String id)`
+* `addGlobalLabel(Point position, String netName)`
+* `removeWire(String id)`
+* `removeJunction(String id)
+* `removeWire(String id)`
+* `removeJunction(String id)`
+* `removeSymbolInstance(String id)`
+* `removeLabel(String id)`
 
 ### Funkcje walidacji
 
