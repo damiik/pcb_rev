@@ -84,6 +84,12 @@ final class SymbolInstance {
     this.mirrory = false,
   });
 
+  String getProperty(String name) {
+    final prop = properties.where((p) => p.name == name);
+    if (prop.isEmpty) return '';
+    return prop.first.value;
+  }
+  
   SymbolInstance copyWith({
     String? libId,
     Position? at,

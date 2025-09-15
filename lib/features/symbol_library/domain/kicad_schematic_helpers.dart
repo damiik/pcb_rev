@@ -5,15 +5,20 @@ import '../data/kicad_schematic_models.dart';
 import '../data/kicad_symbol_models.dart';
 
 /// Pomocnicza funkcja do pobierania czytelnego deskryptora (np. "R1") na podstawie UUID instancji.
-String getSymbolDesignator(KiCadSchematic schematic, String symbolRef) {
+// String getSymbolDesignator(SymbolInstance symbol) {
 
-  final matching = schematic.symbolInstances.where((inst) => inst.uuid == symbolRef);
-  if (matching.isEmpty) return symbolRef;
-  
-  final refP = matching.first.properties.where((prop) => prop.name == 'Reference');
-  if (refP.isEmpty) return symbolRef;
-  return refP.first.value;
-}
+//   final refP = symbol.properties.where((prop) => prop.name == 'Reference');
+//   if (refP.isEmpty) return symbol.libId;
+//   return refP.first.value;
+// }
+// /// Pomocnicza funkcja do pobierania wartości instancji symbolu (np. "R1") na podstawie UUID instancji.
+// String getSymbolValue(SymbolInstance symbol) {
+
+//   final refP = symbol.properties.where((prop) => prop.name == 'Value');
+//   if (refP.isEmpty) return symbol.libId;
+//   return refP.first.value;
+// }
+
 
 
 /// Calculates the absolute position of a symbol pin on the schematic.
