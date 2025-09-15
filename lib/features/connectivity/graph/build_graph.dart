@@ -25,6 +25,15 @@ ConnectivityGraph buildGraph({
       ),
     );
 
+    items[instance.uuid] = SymbolInstance(
+      instance.uuid,
+      Point(mm2mill(instance.at.x), mm2mill(instance.at.y)), // convert from mm to mils
+      instance.libId,
+      instance.getProperty('Reference'),
+      instance.getProperty('Value'),
+      instance.getProperty('Description'),
+    );
+
     for (final unit in libSymbol.units) {
       for (final pin in unit.pins) {
         final pos = getPinAbsolutePosition(instance, pin); // convert from mm to mils
@@ -35,7 +44,7 @@ ConnectivityGraph buildGraph({
 
         print ('Pin ${pinName} of ${instance.libId} at ($x, $y)');
         final id = '${instance.uuid}:${pin.number}';
-        items[id] = Pin(id, Point(x, y), instance.uuid, pinName, instance.libId, getSymbolDesignator(schematic, instance.uuid),
+        items[id] = Pin(id, Point(x, y), instance.uuid, pinName, instance.getProperty('Reference'),
           isPowerPin: pin.type == kicad_symbol.PinType.powerIn || pin.type == kicad_symbol.PinType.powerOut,
           isOutputPin: pin.type == kicad_symbol.PinType.output || pin.type == kicad_symbol.PinType.bidirectional,
           isInputPin: pin.type == kicad_symbol.PinType.input || pin.type == kicad_symbol.PinType.bidirectional,

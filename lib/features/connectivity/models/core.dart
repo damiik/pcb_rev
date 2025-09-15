@@ -61,7 +61,7 @@ class ConnectivityGraph {
     for (final e in nets.entries) {
       newNets[e.key] = Net(
         e.value.name,
-        e.value.pins.map((p) => Pin(p.id, p.position, p.symbolRef, p.pinName, p.libraryId, p.symbolDesignator)).toList(),
+        e.value.pins.map((p) => Pin(p.id, p.position, p.symbolRef, p.pinName, p.symbolDesignator)).toList(),
       );
     }
 
@@ -104,18 +104,24 @@ sealed class ConnectionItem {
           pos,
           p.symbolRef,
           p.pinName,
-          p.libraryId,
           p.symbolDesignator,
           isPowerPin: p.isPowerPin,
           isOutputPin: p.isOutputPin,
           isInputPin: p.isInputPin,
         );
+
       case Junction:
         final j = this as Junction;
         return Junction(j.id, pos);
+
       case Label:
         final l = this as Label;
         return Label(l.id, pos, l.netName);
+
+      case SymbolInstance:
+        final s = this as SymbolInstance;
+        return SymbolInstance(s.id, pos, s.libraryId, s.designator, s.value, s.description);
+
       default:
         // fallback – gdyby pojawił się nowy typ
         throw UnimplementedError('copyItem not implemented for ${runtimeType}');
@@ -132,16 +138,25 @@ class Junction extends ConnectionItem {
   Junction(super.id, super.position);
 }
 
+
+class SymbolInstance extends ConnectionItem {
+  final String libraryId;
+  final String designator;
+  final String value;
+  final String description;
+
+  SymbolInstance(super.id, super.position, this.libraryId, this.designator, this.value, this.description);
+}
+
 class Pin extends ConnectionItem {
   final String symbolRef;
   final String pinName;
-  final String libraryId;
   final String symbolDesignator; // czytelny deskryptor pinu, np. "R1" (uzupełniany później)
   bool isPowerPin = false; // czy pin jest pinem zasilania (np. VCC, GND)
   bool isOutputPin = false; // czy pin jest pinem wyjściowym (np. sygnał)
   bool isInputPin = false;  // czy pin jest pinem wejściowym (np. sygnał)
 
-  Pin(super.id, super.position, this.symbolRef, this.pinName, this.libraryId, this.symbolDesignator, {
+  Pin(super.id, super.position, this.symbolRef, this.pinName, this.symbolDesignator, {
     this.isPowerPin = false,
     this.isOutputPin = false,
     this.isInputPin = false,

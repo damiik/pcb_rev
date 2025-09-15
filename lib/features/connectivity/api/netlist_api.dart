@@ -64,28 +64,64 @@ List<Map<String, dynamic>> _collectSymbols(ConnectivityGraph graph) {
   final symbols = <String, Map<String, dynamic>>{};
 
   for (final item in graph.items.values) {
-    if (item is Pin) {
-      final ref = item.symbolRef;
-      symbols.putIfAbsent(ref, () {
-        return {
-          // "ref": ref,
-          "designator": item.symbolDesignator,
-          "libraryId": item.libraryId, // Use the libraryId from the pin
-          "pins": [],
-          "position": {
-            "x": item.position.x,
-            "y": item.position.y,
-          }
+
+    if(item is SymbolInstance) {
+      if (!symbols.containsKey(item.designator)) {
+        // Jeśli symbol o takim designatorze jeszcze nie istnieje, dodajemy go  
+        symbols.putIfAbsent(item.designator, () {
+          return {
+            "designator": item.designator,
+            "libraryId": item.libraryId,
+            "value": item.value,
+            "description": item.description,
+            "position": {
+              "x": item.position.x,
+              "y": item.position.y,
+            },
+            "pins": []
+          };
+        });
+      }
+      else {
+        // Jeśli symbol o takim designatorze już istnieje, możemy zaktualizować jego pola
+        symbols[item.designator]!["position"] = {
+          "x": item.position.x,
+          "y": item.position.y,
         };
-      });
+        symbols[item.designator]!["designator"] = item.designator;
+        symbols[item.designator]!["libraryId"] = item.libraryId;
+        symbols[item.designator]!["value"] = item.value;
+        symbols[item.designator]!["description"] = item.description;
+      }
+    }
+
+
+
+    if (item is Pin) {
+      final ref = item.symbolDesignator;
+
+      if (!symbols.containsKey(ref)) {
+        // SymbolInstance nie został znaleziony, pomijamy ten pin
+        symbols.putIfAbsent(ref, () {
+
+          return {
+            "designator": ref,
+            "libraryId": "", // brak danych
+            "value": "",
+            "description": "",
+            "position": {
+              "x": 0,
+              "y": 0,
+            },
+            "pins": []
+          };
+        });
+      }
+
 
       (symbols[ref]!["pins"] as List).add({
         "name": item.pinName,
         "type": pin2str(item),
-        // "position": {
-        //   "x": item.position.x,
-        //   "y": item.position.y,
-        // }
       });
     }
   }
