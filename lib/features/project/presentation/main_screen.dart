@@ -27,6 +27,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../connectivity/domain/connectivity_adapter.dart';
 import '../../connectivity/models/connectivity.dart';
+import '../../connectivity/api/netlist_api.dart' as netlist_api;
 
 
 enum ViewMode { pcb, schematic }
@@ -775,10 +776,40 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   }
 
   Future<void> _exportNetlist() async {
-    if (currentProject == null) return;
-    final netlist = generateNetlistFromProject(currentProject!);
-    // Further export logic would go here
+    if (_connectivity == null) {
+      print('Cannot export netlist, connectivity not available.');
+      // Optionally, show a snackbar to the user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Connectivity data not available. Is a schematic loaded?'),
+        ),
+      );
+      return;
+    }
+    final netlist = netlist_api.getNetlist(_connectivity!.graph);
+    // Further export logic would go here (e.g., save to file)
+    print('--- Generated Netlist (JSON) ---');
     print(netlist);
+    print('---------------------------------');
+
+    // For demonstration, also show a dialog
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Generated Netlist'),
+        content: Scrollbar(
+          child: SingleChildScrollView(
+            child: Text(netlist),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _saveKiCadSchematic() async {

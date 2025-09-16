@@ -10,8 +10,7 @@ ConnectionPoint connectionPointFromJson(Map<String, dynamic> json) => (
   componentId: json['componentId'] as String,
   pinId: json['pinId'] as String,
 );
-String connectionPointToString(ConnectionPoint cp) =>
-    '${cp.componentId}.${cp.pinId}';
+
 
 // --- Pin ---
 typedef Pin = ({

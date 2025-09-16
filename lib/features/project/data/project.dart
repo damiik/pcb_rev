@@ -8,7 +8,7 @@ typedef PCBImageView = ({
   String id,
   String path,
   String layer, // top/bottom
-  Map<String, SymbolInstance>
+  Map<String, VisualSymbolPlacement>
   componentPlacements, // Annotations are just symbols on an image
   ImageModification modification,
 });
@@ -18,7 +18,7 @@ Map<String, dynamic> pcbImageViewToJson(PCBImageView v) => {
   'path': v.path,
   'layer': v.layer,
   'componentPlacements': v.componentPlacements.map(
-    (k, v) => MapEntry(k, symbolInstanceToJson(v)),
+    (k, v) => MapEntry(k, visualSymbolPlacementToJson(v)),
   ),
   'modification': imageModificationToJson(v.modification),
 };
@@ -28,7 +28,7 @@ PCBImageView pcbImageViewFromJson(Map<String, dynamic> json) => (
   path: json['path'] as String,
   layer: json['layer'] as String,
   componentPlacements: (json['componentPlacements'] as Map<String, dynamic>)
-      .map((k, v) => MapEntry(k, symbolInstanceFromJson(v as Map<String, dynamic>))),
+      .map((k, v) => MapEntry(k, visualSymbolPlacementFromJson(v as Map<String, dynamic>))),
   modification: imageModificationFromJson(
     json['modification'] as Map<String, dynamic>,
   ),
@@ -76,22 +76,7 @@ Project projectFromJson(Map<String, dynamic> json) => (
       .toList(),
 );
 
-// --- Netlist Generation ---
-String generateNetlistFromProject(Project project) {
-  final buffer = StringBuffer();
-  buffer.writeln('* Components');
-  for (final comp in project.logicalComponents.values) {
-    buffer.writeln('${comp.id} ${comp.type} ${comp.value ?? ""}');
-  }
-  buffer.writeln('\n* Nets');
-  for (final net in project.logicalNets.values) {
-    final connections = net.connections
-        .map((c) => connectionPointToString(c))
-        .join(' ');
-    buffer.writeln('NET ${net.name}: $connections');
-  }
-  return buffer.toString();
-}
+
 
 extension ProjectCopyWith on Project {
   Project copyWith({
