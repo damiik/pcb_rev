@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
 import '../../../schematic/data/logical_models.dart';
 import '../../../symbol_library/data/kicad_schematic_models.dart';
 import '../../../symbol_library/data/kicad_symbol_models.dart' as kicad_models;
 
 class GlobalListPanel extends StatefulWidget {
   final List<LogicalComponent> components;
-  final List<LogicalNet> nets;
+  final List<connectivity_core.Net> nets;
   final Function(LogicalComponent) onComponentSelected;
-  final Function(LogicalNet) onNetSelected;
+  final Function(connectivity_core.Net) onNetSelected;
   final Function(kicad_models.LibrarySymbol) onLibrarySymbolSelected;
   final KiCadSchematic? schematic;
 
@@ -142,7 +143,7 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
     }
   }
 
-  List<LogicalNet> _filterNets(String query) {
+  List<connectivity_core.Net> _filterNets(String query) {
     return widget.nets
         .where((net) => net.name.toLowerCase().contains(query))
         .toList();
@@ -171,14 +172,14 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
     );
   }
 
-  Widget _buildNetList(List<LogicalNet> nets) {
+  Widget _buildNetList(List<connectivity_core.Net> nets) {
     return ListView.builder(
       itemCount: nets.length,
       itemBuilder: (context, index) {
         final net = nets[index];
         return ListTile(
           title: Text(net.name),
-          subtitle: Text('${net.connections.length} connections'),
+          subtitle: Text('${net.pins.length} pins'),
           onTap: () => widget.onNetSelected(net),
         );
       },

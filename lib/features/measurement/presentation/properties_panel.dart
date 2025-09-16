@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
 import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_models.dart';
 import '../../../features/symbol_library/data/kicad_symbol_models.dart' as kicad_models;
 import '../data/measurement_service.dart';
@@ -9,6 +10,7 @@ class PropertiesPanel extends StatelessWidget {
   final Function(Map<String, dynamic>) onComponentAdded;
   final Function()? onAddSymbolInstance; // Callback for handling *Add symbol instance* button, must be provided by parent
   final SymbolInstance? selectedSymbolInstance;
+  final connectivity_core.Net? selectedNet;
   final Function(SymbolInstance, kicad_models.Property)? onPropertyUpdated;
 
   PropertiesPanel({
@@ -17,6 +19,7 @@ class PropertiesPanel extends StatelessWidget {
     required this.onComponentAdded,
     this.onAddSymbolInstance,     // In constructor parent must provide this function to handle adding symbol instance
     this.selectedSymbolInstance,
+    this.selectedNet,
     this.onPropertyUpdated,
   });
 
@@ -31,7 +34,7 @@ class PropertiesPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Components & Measurements',
+            'Properties & Measurements',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           SizedBox(height: 16),
@@ -67,12 +70,26 @@ class PropertiesPanel extends StatelessWidget {
 
           Divider(height: 32),
 
-          // Display recent measurements
+          // Display details for selected item
           if (selectedSymbolInstance != null) ...[
-            Divider(height: 32),
             Text('Properties', style: Theme.of(context).textTheme.headlineSmall),
             ..._buildPropertyFields(selectedSymbolInstance!),
+          ] else if (selectedNet != null) ...[
+            Text('Net Pins', style: Theme.of(context).textTheme.headlineSmall),
+            Expanded(
+              child: ListView.builder(
+                itemCount: selectedNet!.pins.length,
+                itemBuilder: (context, index) {
+                  final pin = selectedNet!.pins[index];
+                  return ListTile(
+                    title: Text('${pin.symbolDesignator}.${pin.pinName}'),
+                  );
+                },
+              ),
+            ),
           ],
+
+          // Display recent measurements
           Expanded(
             child: ListView(
               children: [

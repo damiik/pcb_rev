@@ -25,7 +25,9 @@ import '../../symbol_library/domain/kicad_schematic_writer.dart';
 import '../../ai_integration/data/mcp_server.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
 import '../../connectivity/domain/connectivity_adapter.dart';
+import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
 import '../../connectivity/models/connectivity.dart';
 import '../../connectivity/api/netlist_api.dart' as netlist_api;
 
@@ -56,6 +58,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   SymbolInstance? _selectedSymbolInstance;
   kicad_symbol_models.LibrarySymbol? _selectedLibrarySymbol;
   Connectivity? _connectivity;
+  connectivity_core.Net? _selectedNet;
 
   @override
   void initState() {
@@ -225,9 +228,15 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                     components:
                         currentProject?.logicalComponents.values.toList() ??
                             [],
-                    nets: currentProject?.logicalNets.values.toList() ?? [],
+                    nets: _connectivity?.nets ?? [],
                     onComponentSelected: _selectComponent,
-                    onNetSelected: _selectNet,
+                    onNetSelected: (net) {
+                      setState(() {
+                        _selectedNet = net;
+                        _selectedSymbolInstance = null; // Clear other selections
+                        _selectedSymbolInstanceId = null;
+                      });
+                    },
                     schematic: _loadedSchematic,
                     onLibrarySymbolSelected: _selectLibrarySymbol,
                   ),
@@ -237,6 +246,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
                   flex: 1,
                   child: PropertiesPanel(  // create child PropertiesPanel with required callbacks  
                     selectedSymbolInstance: _selectedSymbolInstance,
+                    selectedNet: _selectedNet,
                     measurementState: measurementState,
                     onMeasurementAdded: _addMeasurement,
                     onComponentAdded: _addComponent,
@@ -421,11 +431,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     return null;
   }
 
-  void _selectNet(LogicalNet net) {
-    setState(() {
-      // Logic to handle net selection in the UI
-    });
-  }
+  
 
   void _updateSymbolProperty(SymbolInstance symbol, kicad_symbol_models.Property updatedProperty) {
     if (_loadedSchematic == null) return;
