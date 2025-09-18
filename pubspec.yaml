@@ -39,6 +39,8 @@ dependencies:
   desktop_drop: ^0.6.1
   file_picker: ^10.3.1
   uuid: ^4.4.0
+  shelf: ^1.4.1
+  # shelf_sse: ^1.0.0
 
 dev_dependencies:
   flutter_test:

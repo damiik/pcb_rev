@@ -4,8 +4,8 @@ import '../models/connectivity.dart';
 import '../graph/build_graph.dart';
 import '../graph/resolve_connectivity.dart';
 
-import '../../symbol_library/data/kicad_schematic_models.dart';
-import '../../symbol_library/data/kicad_symbol_models.dart';
+import '../../kicad/data/kicad_schematic_models.dart';
+import '../../kicad/data/kicad_symbol_models.dart';
 
 /// Adapter: konwertuje [KiCadSchematic] na [ConnectivityGraph].
 ///

@@ -1,15 +1,14 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
-import '../../../features/project/data/project.dart';
-import '../../../features/schematic/data/logical_models.dart';
+import '../../project/data/project.dart';
+import '../../project/data/logical_models.dart';
 import '../data/capture_service.dart';
 import '../data/image_modification.dart';
-import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_loader.dart';
+import 'package:pcb_rev/features/kicad/data/kicad_symbol_loader.dart';
 
 class PCBViewerPanel extends StatefulWidget {
   final Project? project;

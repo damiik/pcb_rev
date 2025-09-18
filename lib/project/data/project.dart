@@ -1,6 +1,6 @@
 import '../../pcb_viewer/data/image_modification.dart';
-import '../../schematic/data/logical_models.dart';
-import '../../schematic/data/visual_models.dart';
+import 'logical_models.dart';
+import 'visual_models.dart';
 
 // --- PCB Image View ---
 // An image is a view with its own set of visual annotations.

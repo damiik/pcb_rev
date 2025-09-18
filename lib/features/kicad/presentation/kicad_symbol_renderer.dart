@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_models.dart';
+import 'package:pcb_rev/features/kicad/data/kicad_schematic_models.dart';
 import 'dart:math' as math;
 import '../data/kicad_symbol_models.dart';
 

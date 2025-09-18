@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:image/image.dart' as img;
-import '../../schematic/data/visual_models.dart';
+import '../../project/data/visual_models.dart';
 
 // --- Functional Refactoring ---
 

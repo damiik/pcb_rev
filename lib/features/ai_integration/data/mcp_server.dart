@@ -2,15 +2,20 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'package:image/image.dart' as img;
-import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_deserializer.dart';
-import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_models.dart';
-import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_serializer.dart';
-import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_models.dart';
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as shelf_io;
+// import 'package:shelf_sse/shelf_sse.dart';
+
+
+import 'package:pcb_rev/features/kicad/data/kicad_schematic_deserializer.dart';
+import 'package:pcb_rev/features/kicad/data/kicad_schematic_models.dart';
+import 'package:pcb_rev/features/kicad/data/kicad_schematic_serializer.dart';
+import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart';
 
 import '../../connectivity/models/connectivity.dart';
 import '../../connectivity/api/netlist_api.dart' as netlist_api;
 import '../../connectivity/models/core.dart' as connectivity_models;
-import '../../pcb_viewer/data/capture_service.dart';
+import '../../../pcb_viewer/data/capture_service.dart';
 import 'core.dart';
 import '../domain/mcp_server_tools.dart';
 

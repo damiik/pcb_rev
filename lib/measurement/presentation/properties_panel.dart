@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
-import 'package:pcb_rev/features/symbol_library/data/kicad_schematic_models.dart';
-import '../../../features/symbol_library/data/kicad_symbol_models.dart' as kicad_models;
+import 'package:pcb_rev/features/kicad/data/kicad_schematic_models.dart';
+import '../../features/kicad/data/kicad_symbol_models.dart' as kicad_models;
 import '../data/measurement_service.dart';
 
 class PropertiesPanel extends StatelessWidget {

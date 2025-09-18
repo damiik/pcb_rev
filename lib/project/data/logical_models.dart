@@ -1,16 +1,5 @@
 import 'visual_models.dart';
 
-// --- ConnectionPoint ---
-typedef ConnectionPoint = ({String componentId, String pinId});
-Map<String, dynamic> connectionPointToJson(ConnectionPoint cp) => {
-  'componentId': cp.componentId,
-  'pinId': cp.pinId,
-};
-ConnectionPoint connectionPointFromJson(Map<String, dynamic> json) => (
-  componentId: json['componentId'] as String,
-  pinId: json['pinId'] as String,
-);
-
 
 // --- Pin ---
 typedef Pin = ({
@@ -59,6 +48,17 @@ LogicalComponent logicalComponentFromJson(Map<String, dynamic> json) => (
         (k, v) => MapEntry(k, pinFromJson(v as Map<String, dynamic>)),
       ),
     );
+
+// --- ConnectionPoint ---
+typedef ConnectionPoint = ({String componentId, String pinId});
+Map<String, dynamic> connectionPointToJson(ConnectionPoint cp) => {
+  'componentId': cp.componentId,
+  'pinId': cp.pinId,
+};
+ConnectionPoint connectionPointFromJson(Map<String, dynamic> json) => (
+  componentId: json['componentId'] as String,
+  pinId: json['pinId'] as String,
+);
 
 // --- LogicalNet ---
 typedef LogicalNet = ({

@@ -4,32 +4,31 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show IntProperty, kIsWeb;
 import 'package:flutter/material.dart';
-import '../../../features/measurement/data/measurement_service.dart'
+import '../../measurement/data/measurement_service.dart'
     as measurement_service;
-import '../../../features/pcb_viewer/data/image_modification.dart';
-import '../../../features/pcb_viewer/presentation/pcb_viewer_panel.dart';
-import '../../../features/schematic/data/logical_models.dart';
-import '../../../features/global_list/presentation/widgets/global_list_panel.dart';
+import '../../pcb_viewer/data/image_modification.dart';
+import '../../pcb_viewer/presentation/pcb_viewer_panel.dart';
+import '../data/logical_models.dart';
+import '../../global_list/presentation/widgets/global_list_panel.dart';
 import '../../measurement/presentation/properties_panel.dart';
 import '../data/project.dart';
-import 'package:pcb_rev/features/pcb_viewer/data/image_processor.dart'
+import 'package:pcb_rev/pcb_viewer/data/image_processor.dart'
     as image_processor;
-import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_models.dart';
-import '../../symbol_library/data/kicad_schematic_models.dart';
-import '../../symbol_library/data/kicad_schematic_loader.dart';
-import '../../symbol_library/data/kicad_symbol_loader.dart';
-import 'package:pcb_rev/features/symbol_library/data/kicad_symbol_models.dart'
+import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart';
+import '../../features/kicad/data/kicad_schematic_models.dart';
+import '../../features/kicad/data/kicad_schematic_loader.dart';
+import '../../features/kicad/data/kicad_symbol_loader.dart';
+import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart'
     as kicad_symbol_models;
-import '../../symbol_library/presentation/schematic_view.dart';
-import '../../symbol_library/domain/kicad_schematic_writer.dart';
-import '../../ai_integration/data/mcp_server.dart';
+import '../../features/kicad/presentation/schematic_view.dart';
+import '../../features/kicad/domain/kicad_schematic_writer.dart';
+import '../../features/ai_integration/data/mcp_server.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
-import '../../connectivity/domain/connectivity_adapter.dart';
-import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
-import '../../connectivity/models/connectivity.dart';
-import '../../connectivity/api/netlist_api.dart' as netlist_api;
+import '../../features/connectivity/domain/connectivity_adapter.dart';
+import '../../features/connectivity/models/connectivity.dart';
+import '../../features/connectivity/api/netlist_api.dart' as netlist_api;
 
 
 enum ViewMode { pcb, schematic }
@@ -645,7 +644,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       return;
     }
 
-    // // Check if reference is unique
+    // Check if reference is unique
     // if (reference.isNotEmpty && _loadedSchematic!.symbolInstances.any((inst) =>
     //     inst.properties.any((prop) =>
     //         prop.name == 'Reference' && prop.value == reference))) {
