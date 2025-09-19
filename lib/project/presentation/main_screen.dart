@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:uuid/uuid.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show IntProperty, kIsWeb;
@@ -23,12 +24,13 @@ import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart'
 import '../../features/kicad/presentation/schematic_view.dart';
 import '../../features/kicad/domain/kicad_schematic_writer.dart';
 import '../../features/ai_integration/data/mcp_server.dart';
-import 'package:uuid/uuid.dart';
+import '../../features/ai_integration/data/mcp_server_ext.dart';
 
 import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
 import '../../features/connectivity/domain/connectivity_adapter.dart';
 import '../../features/connectivity/models/connectivity.dart';
 import '../../features/connectivity/api/netlist_api.dart' as netlist_api;
+import '../api/schematic_api.dart';
 
 
 enum ViewMode { pcb, schematic }
@@ -41,6 +43,8 @@ class PCBAnalyzerApp extends StatefulWidget {
 }
 
 class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
+
+  final _schematicAPI = KiCadSchematicAPI();
   MCPServer? _mcpServer;
   ViewMode _currentView = ViewMode.pcb;
   Project? currentProject;
@@ -667,35 +671,95 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       maybeProperty = null;
     }
     final prefix = maybeProperty?.value.replaceAll(RegExp(r'\d'), '') ?? 'X';
-    final newRef = _generateNewRef(prefix);
-    final propertyReference  = librarySymbol.properties.firstWhere((p) => p.name == 'Reference', orElse: () => kicad_symbol_models.Property(name: 'Reference', value: '', position: kicad_symbol_models.Position(0, 0), effects: kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1, height: 1), justify: kicad_symbol_models.Justify.left, hide: false)));
+    // final newRef = _generateNewRef(prefix);
+    // final propertyReference  = librarySymbol.properties.firstWhere((p) => p.name == 'Reference', orElse: () => kicad_symbol_models.Property(name: 'Reference', value: '', position: kicad_symbol_models.Position(0, 0), effects: kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1, height: 1), justify: kicad_symbol_models.Justify.left, hide: false)));
     final propertyValue = librarySymbol.properties.firstWhere((p) => p.name == 'Value', orElse: () => kicad_symbol_models.Property(name: 'Value', value: '', position: kicad_symbol_models.Position(0, 0), effects: kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1, height: 1), justify: kicad_symbol_models.Justify.left, hide: false)));
-    final position = kicad_symbol_models.Position(150, 100); // Default position
 
-    final newSymbolInstance = SymbolInstance(
-      libId: librarySymbol.name,
-      at: position,
-      uuid: Uuid().v4(),
-      unit: 1,
-      inBom: true,
-      onBoard: true,
-      dnp: false,
-      properties: [
-        kicad_symbol_models.Property(name: 'Reference', value: newRef, position: kicad_symbol_models.Position(propertyReference.position.x + position.x, propertyReference.position.y + position.y), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: false)),
-        kicad_symbol_models.Property(name: 'Value', value: propertyValue.value, position: kicad_symbol_models.Position(propertyValue.position.x + position.x, propertyValue.position.y + position.y), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: false)),
-        kicad_symbol_models.Property(name: 'Footprint', value: "", position: kicad_symbol_models.Position(0, 0), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: true)),
-        kicad_symbol_models.Property(name: 'Datasheet', value: "", position: kicad_symbol_models.Position(0, 0), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: true)),
-      ],
-    );
+    // final newSymbolInstance = SymbolInstance(
+    //   libId: librarySymbol.name,
+    //   at: position,
+    //   uuid: Uuid().v4(),
+    //   unit: 1,
+    //   inBom: true,
+    //   onBoard: true,
+    //   dnp: false,
+    //   properties: [
+    //     kicad_symbol_models.Property(name: 'Reference', value: newRef, position: kicad_symbol_models.Position(propertyReference.position.x + position.x, propertyReference.position.y + position.y), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: false)),
+    //     kicad_symbol_models.Property(name: 'Value', value: propertyValue.value, position: kicad_symbol_models.Position(propertyValue.position.x + position.x, propertyValue.position.y + position.y), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: false)),
+    //     kicad_symbol_models.Property(name: 'Footprint', value: "", position: kicad_symbol_models.Position(0, 0), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: true)),
+    //     kicad_symbol_models.Property(name: 'Datasheet', value: "", position: kicad_symbol_models.Position(0, 0), effects: const kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1.27, height: 1.27), justify: kicad_symbol_models.Justify.left, hide: true)),
+    //   ],
+    // );
 
-    final updatedInstances = List<SymbolInstance>.from(_loadedSchematic!.symbolInstances)
-      ..add(newSymbolInstance);
+    // final updatedInstances = List<SymbolInstance>.from(_loadedSchematic!.symbolInstances)
+    //   ..add(newSymbolInstance);
 
+    // Use the new API to add the symbol
     setState(() {
-      _loadedSchematic = _loadedSchematic!.copyWith(symbolInstances: updatedInstances);
+      _loadedSchematic = _schematicAPI.addSymbolInstance(
+        schematic: _loadedSchematic!,
+        symbolLibId: librarySymbol!.name,
+        reference: _generateNewRef(prefix),
+        value: propertyValue.value,
+        position: kicad_symbol_models.Position(150, 100), // Default position
+      );
     });
     _updateConnectivity();
   }
+
+  void addWireConnection(
+    Position start,
+    Position end,
+  ) {
+    if (_loadedSchematic == null) return;
+
+    final updatedSchematic = _schematicAPI.addWire(
+      schematic: _loadedSchematic!,
+      points: [start, end],
+    );
+
+    setState(() {
+      _loadedSchematic = updatedSchematic;
+    });
+    _updateConnectivity();
+  }
+
+  // Example of how to add a junction programmatically
+  void addJunctionAtPosition(Position position) {
+    if (_loadedSchematic == null) return;
+
+    final updatedSchematic = _schematicAPI.addJunction(
+      schematic: _loadedSchematic!,
+      position: position,
+    );
+
+    setState(() {
+      _loadedSchematic = updatedSchematic;
+    });
+    _updateConnectivity();
+  }
+
+  // Example of how to add a label programmatically
+  void addNetLabel(String netName, Position position) {
+    if (_loadedSchematic == null) return;
+
+    final updatedSchematic = _schematicAPI.addLabel(
+      schematic: _loadedSchematic!,
+      text: netName,
+      position: position,
+    );
+
+    setState(() {
+      _loadedSchematic = updatedSchematic;
+    });
+    _updateConnectivity();
+  }
+
+
+
+
+
+
 
   void _addMeasurement(String type, dynamic value) {
     // This function is now only for actual measurements.
