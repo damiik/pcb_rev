@@ -190,7 +190,9 @@ graph TD
     C --> H(PCB Viewer);
     C --> J(Measurement);
     C --> K(AI Integration);
-    C --> L(Symbol Library);
+    C --> L(Connectivity);
+    C --> M(Kicad);
+    C --> N(Global List);
 
     G --> G_Data[Data];
     G --> G_Pres[Presentation];
@@ -202,10 +204,16 @@ graph TD
     J --> J_Pres[Presentation];
 
     K --> K_Data[Data];
+    K --> K_Domain[Domain];
 
-    L --> L_Data[Data];
+    L --> L_Models[Models];
     L --> L_Domain[Domain];
-    L --> L_Pres[Presentation];
+
+    M --> M_Data[Data];
+    M --> M_Domain[Domain];
+    M --> M_Pres[Presentation];
+
+    N --> N_Pres[Presentation];
 ```
 
 ## 4. Koncepcja Pracy i Model Danych (Workflow)
@@ -295,14 +303,49 @@ pcb_rev/
 │   │   ├── ai_integration/
 │   │   │   ├── data/
 │   │   │   │   ├── core.dart
-│   │   │   │   └── mcp_server.dart
+│   │   │   │   ├── mcp_server.dart
+│   │   │   │   └── mcp_server_ext.dart
 │   │   │   ├── domain/
 │   │   │   │   └── mcp_server_tools.dart
 │   │   │   └── service/
 │   │   │       └── http_client.dart
+│   │   ├── connectivity/
+│   │   │   ├── api/
+│   │   │   │   └── netlist_api.dart
+│   │   │   ├── domain/
+│   │   │   │   └── connectivity_adapter.dart
+│   │   │   ├── graph/
+│   │   │   │   ├── build_graph.dart
+│   │   │   │   ├── refresh.dart
+│   │   │   │   ├── resolve_connectivity.dart
+│   │   │   │   └── tools.dart
+│   │   │   └── models/
+│   │   │       ├── connectivity.dart
+│   │   │       ├── core.dart
+│   │   │       └── point.dart
 │   │   ├── global_list/
 │   │   │   └── presentation/
 │   │   │       └── widgets/
+│   │   │           └── global_list_panel.dart
+│   │   ├── kicad/
+│   │   │   ├── data/
+│   │   │   │   ├── kicad_schematic_deserializer.dart
+│   │   │   │   ├── kicad_schematic_loader.dart
+│   │   │   │   ├── kicad_schematic_models.dart
+│   │   │   │   ├── kicad_schematic_serializer.dart
+│   │   │   │   ├── kicad_symbol_loader.dart
+│   │   │   │   └── kicad_symbol_models.dart
+│   │   │   ├── domain/
+│   │   │   │   ├── kicad_schematic_helpers.dart
+│   │   │   │   ├── kicad_schematic_parser.dart
+│   │   │   │   ├── kicad_schematic_writer.dart
+│   │   │   │   ├── kicad_sexpr_parser.dart
+│   │   │   │   ├── kicad_symbol_parser.dart
+│   │   │   │   └── kicad_tokenizer.dart
+│   │   │   └── presentation/
+│   │   │       ├── kicad_schematic_renderer.dart
+│   │   │       ├── kicad_symbol_renderer.dart
+│   │   │       └── schematic_view.dart
 │   │   ├── measurement/
 │   │   │   ├── data/
 │   │   │   │   └── measurement_service.dart
@@ -310,38 +353,20 @@ pcb_rev/
 │   │   │       └── properties_panel.dart
 │   │   ├── pcb_viewer/
 │   │   │   ├── data/
+│   │   │   │   ├── capture_service.dart
 │   │   │   │   ├── image_modification.dart
 │   │   │   │   └── image_processor.dart
 │   │   │   └── presentation/
 │   │   │       └── pcb_viewer_panel.dart
-│   │   ├── project/
-│   │   │   ├── data/
-│   │   │   │   └── project.dart
-│   │   │   └── presentation/
-│   │   │       └── main_screen.dart
-│   │   ├── schematic/
-│   │   │   ├── data/
-│   │   │   │   ├── logical_models.dart
-│   │   │   │   └── visual_models.dart
-│   │   │   └── presentation/
-│   │   │       └── widgets/
-│   │   │           └── component_painters.dart
-│   │   └── symbol_library/
+│   │   └── project/
+│   │       ├── api/
+│   │       │   └── schematic_api.dart
 │   │       ├── data/
-│   │       │   ├── kicad_schematic_loader.dart
-│   │       │   ├── kicad_schematic_models.dart
-│   │       │   ├── kicad_symbol_loader.dart
-│   │       │   └── kicad_symbol_models.dart
-│   │       ├── domain/
-│   │       │   ├── kicad_schematic_parser.dart
-│   │       │   ├── kicad_schematic_writer.dart
-│   │       │   ├── kicad_sexpr_parser.dart
-│   │       │   ├── kicad_symbol_parser.dart
-│   │       │   └── kicad_tokenizer.dart
+│   │       │   ├── logical_models.dart
+│   │       │   ├── project.dart
+│   │       │   └── visual_models.dart
 │   │       └── presentation/
-│   │           ├── kicad_schematic_renderer.dart
-│   │           ├── kicad_symbol_renderer.dart
-│   │           └── schematic_view.dart
+│   │           └── main_screen.dart
 │   └── main.dart
 ├── pubspec.yaml
 ├── README.md
