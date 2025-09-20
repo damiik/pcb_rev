@@ -25,11 +25,13 @@ import '../../features/kicad/presentation/schematic_view.dart';
 import '../../features/kicad/domain/kicad_schematic_writer.dart';
 import '../../features/ai_integration/data/mcp_server.dart';
 import '../../features/ai_integration/data/schematic_edit_mcp.dart';
+import '../../features/ai_integration/domain/project_mcp.dart';
 
 import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
 import '../../features/connectivity/domain/connectivity_adapter.dart';
 import '../../features/connectivity/models/connectivity.dart';
 import '../../features/connectivity/api/netlist_api.dart' as netlist_api;
+import '../api/application_api.dart';
 import '../api/schematic_api.dart';
 
 
@@ -44,6 +46,7 @@ class PCBAnalyzerApp extends StatefulWidget {
 
 class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
+  final _applicationAPI = ApplicationAPI();
   final _schematicAPI = KiCadSchematicAPI();
   MCPServer? _mcpServer;
   ViewMode _currentView = ViewMode.pcb;
@@ -93,9 +96,36 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       },
       getConnectivity: () => _connectivity,
     );
+
+    // Register schematic editing tools
     _mcpServer!.registerToolHandlers(_mcpServer!.extendedToolHandlers);
     _mcpServer!.registerToolDefinitions(_mcpServer!.extendedToolDefinitions);
+
+    // Register project management tools
+    final projectHandlers = getProjectToolHandlers(
+      onProjectOpened: _applyOpenedProject, // Use the new centralized method
+      getProject: () => currentProject,
+      updateProject: (newProject) {
+        setState(() {
+          currentProject = newProject;
+        });
+      },
+    );
+    _mcpServer!.registerToolHandlers(projectHandlers);
+    _mcpServer!.registerToolDefinitions(projectTools);
+
     _mcpServer!.start();
+  }
+
+  /// Centralized method to apply a newly opened project to the application state.
+  void _applyOpenedProject(OpenedProject openedProject) {
+    setState(() {
+      currentProject = openedProject.project;
+      _loadedSchematic = openedProject.schematic;
+      _currentImageIndex = 0;
+      _currentView = ViewMode.pcb;
+    });
+    _updateConnectivity();
   }
 
   void _initializeProject() {
@@ -818,8 +848,8 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         );
 
     if (result != null) {
-      final file = File(result.files.single.path!);
-      if (!file.path.endsWith('.pcbrev')) {
+      final path = result.files.single.path!;
+      if (!path.endsWith('.pcbrev')) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -831,17 +861,21 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         });
         return;
       }
-      final content = await file.readAsString();
-      final project = projectFromJson(jsonDecode(content));
-      setState(() {
-        currentProject = project;
-        _currentImageIndex = 0;
-        _loadedSchematic = null;
-        _currentView = ViewMode.pcb;
-      });
 
-      if (project.schematicFilePath != null) {
-        await _loadSchematicFile(project.schematicFilePath!);
+      try {
+        final openedProject = await _applicationAPI.openProject(path);
+        _applyOpenedProject(openedProject); // Use the new centralized method
+      } catch (e) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error opening project: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        });
       }
     }
   }
