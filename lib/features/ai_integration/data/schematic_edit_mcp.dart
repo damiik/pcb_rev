@@ -2,248 +2,20 @@ import 'package:pcb_rev/features/kicad/data/kicad_schematic_models.dart';
 import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart';
 import './core.dart';
 import 'mcp_server.dart';
+import '../domain/mcp_server_tools.dart';
 
-// Extended MCP Server implementation with schematic manipulation tools
-extension SchematicManipulationTools on MCPServer {
-  
-  List<ToolDefinition> get extendedToolDefinitions => [
-    ToolDefinition(
-      name: 'add_symbol',
-      description: 'Add a symbol to the schematic',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'symbol_lib_id': {'type': 'string'},
-          'reference': {'type': 'string'},
-          'value': {'type': 'string'},
-          'position': {
-            'type': 'object',
-            'properties': {
-              'x': {'type': 'number'},
-              'y': {'type': 'number'},
-              'angle': {'type': 'number'},
-            },
-            'required': ['x', 'y'],
-          },
-          'angle': {'type': 'number'},
-          'mirror_x': {'type': 'boolean'},
-          'mirror_y': {'type': 'boolean'},
-          'unit': {'type': 'integer'},
-        },
-        'required': ['symbol_lib_id', 'reference', 'value', 'position'],
-      },
-    ),
-    ToolDefinition(
-      name: 'update_symbol',
-      description: 'Update an existing symbol',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'uuid': {'type': 'string'},
-          'reference': {'type': 'string'},
-          'value': {'type': 'string'},
-          'position': {
-            'type': 'object',
-            'properties': {
-              'x': {'type': 'number'},
-              'y': {'type': 'number'},
-              'angle': {'type': 'number'},
-            },
-          },
-          'mirror_x': {'type': 'boolean'},
-          'mirror_y': {'type': 'boolean'},
-        },
-        'required': ['uuid'],
-      },
-    ),
-    ToolDefinition(
-      name: 'remove_element',
-      description: 'Remove an element by UUID',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'uuid': {'type': 'string'},
-        },
-        'required': ['uuid'],
-      },
-    ),
-    ToolDefinition(
-      name: 'add_wire',
-      description: 'Add a wire connection',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'points': {
-            'type': 'array',
-            'items': {
-              'type': 'object',
-              'properties': {
-                'x': {'type': 'number'},
-                'y': {'type': 'number'},
-              },
-              'required': ['x', 'y'],
-            },
-          },
-          'stroke_width': {'type': 'number'},
-        },
-        'required': ['points'],
-      },
-    ),
-    ToolDefinition(
-      name: 'add_junction',
-      description: 'Add a junction',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'position': {
-            'type': 'object',
-            'properties': {
-              'x': {'type': 'number'},
-              'y': {'type': 'number'},
-            },
-            'required': ['x', 'y'],
-          },
-          'diameter': {'type': 'number'},
-        },
-        'required': ['position'],
-      },
-    ),
-    ToolDefinition(
-      name: 'add_label',
-      description: 'Add a label',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'text': {'type': 'string'},
-          'position': {
-            'type': 'object',
-            'properties': {
-              'x': {'type': 'number'},
-              'y': {'type': 'number'},
-              'angle': {'type': 'number'},
-            },
-            'required': ['x', 'y'],
-          },
-        },
-        'required': ['text', 'position'],
-      },
-    ),
-    ToolDefinition(
-      name: 'add_global_label',
-      description: 'Add a global label',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'text': {'type': 'string'},
-          'position': {
-            'type': 'object',
-            'properties': {
-              'x': {'type': 'number'},
-              'y': {'type': 'number'},
-              'angle': {'type': 'number'},
-            },
-            'required': ['x', 'y'],
-          },
-          'shape': {'type': 'string'},
-        },
-        'required': ['text', 'position'],
-      },
-    ),
-    ToolDefinition(
-      name: 'add_bus',
-      description: 'Add a bus',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'points': {
-            'type': 'array',
-            'items': {
-              'type': 'object',
-              'properties': {
-                'x': {'type': 'number'},
-                'y': {'type': 'number'},
-              },
-              'required': ['x', 'y'],
-            },
-          },
-          'stroke_width': {'type': 'number'},
-        },
-        'required': ['points'],
-      },
-    ),
-    ToolDefinition(
-      name: 'add_bus_entry',
-      description: 'Add a bus entry',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'position': {
-            'type': 'object',
-            'properties': {
-              'x': {'type': 'number'},
-              'y': {'type': 'number'},
-            },
-            'required': ['x', 'y'],
-          },
-          'size': {
-            'type': 'object',
-            'properties': {
-              'width': {'type': 'number'},
-              'height': {'type': 'number'},
-            },
-            'required': ['width', 'height'],
-          },
-          'stroke_width': {'type': 'number'},
-        },
-        'required': ['position', 'size'],
-      },
-    ),
-    ToolDefinition(
-      name: 'find_elements_at_position',
-      description: 'Find elements at a position',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'position': {
-            'type': 'object',
-            'properties': {
-              'x': {'type': 'number'},
-              'y': {'type': 'number'},
-            },
-            'required': ['x', 'y'],
-          },
-          'tolerance': {'type': 'number'},
-        },
-        'required': ['position'],
-      },
-    ),
-    ToolDefinition(
-      name: 'batch_add_elements',
-      description: 'Batch add multiple elements in a single operation',
-      inputSchema: {
-        'type': 'object',
-        'properties': {
-          'operations': {
-            'type': 'array',
-            'items': {
-              'type': 'object',
-              'properties': {
-                'type': {'type': 'string'},
-                'data': {'type': 'object'},
-              },
-              'required': ['type', 'data'],
-            },
-          },
-        },
-        'required': ['operations'],
-      },
-    ),
-  ];
+// Schematic editing tools extension for MCP Server
+extension SchematicEditingTools on MCPServer {
 
-  // Add this to your existing _toolHandlers map:
-  Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)> 
-      get extendedToolHandlers => {
-            // ... existing handlers ...
+  /// Get schematic editing tool definitions from domain layer
+  List<ToolDefinition> get schematicEditToolDefinitions => schematicEditMcpTools;
+
+  /// Legacy getter for backward compatibility
+  List<ToolDefinition> get extendedToolDefinitions => schematicEditToolDefinitions;
+
+  /// Get schematic editing tool handlers
+  Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)>
+      get schematicEditToolHandlers => {
             'add_symbol': _addSymbol,
             'update_symbol': _updateSymbol,
             'remove_element': _removeElement,
@@ -257,7 +29,9 @@ extension SchematicManipulationTools on MCPServer {
             'batch_add_elements': _batchAddElements,
           };
 
-
+  /// Legacy getter for backward compatibility
+  Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)>
+      get extendedToolHandlers => schematicEditToolHandlers;
 
   /// Add a symbol to the schematic
   Future<Map<String, dynamic>> _addSymbol(Map<String, dynamic> args) async {
@@ -279,13 +53,11 @@ extension SchematicManipulationTools on MCPServer {
         (positionData['y'] as num).toDouble(),
         (positionData['angle'] as num?)?.toDouble() ?? 0.0,
       );
-      
+
       final angle = (args['angle'] as num?)?.toDouble() ?? 0.0;
       final mirrorX = args['mirror_x'] as bool? ?? false;
       final mirrorY = args['mirror_y'] as bool? ?? false;
       final unit = args['unit'] as int? ?? 1;
-
-      
 
       final updatedSchematic = schematicAPI.addSymbolInstance(
         schematic: schematic,
@@ -340,7 +112,7 @@ extension SchematicManipulationTools on MCPServer {
       final symbolUuid = args['uuid'] as String;
       final reference = args['reference'] as String?;
       final value = args['value'] as String?;
-      
+
       Position? position;
       if (args['position'] != null) {
         final posData = args['position'] as Map<String, dynamic>;
@@ -350,7 +122,7 @@ extension SchematicManipulationTools on MCPServer {
           (posData['angle'] as num?)?.toDouble() ?? 0.0,
         );
       }
-      
+
       final mirrorX = args['mirror_x'] as bool?;
       final mirrorY = args['mirror_y'] as bool?;
 
@@ -409,7 +181,7 @@ extension SchematicManipulationTools on MCPServer {
           0.0,
         );
       }).toList();
-      
+
       final strokeWidth = (args['stroke_width'] as num?)?.toDouble() ?? 0.0;
 
       final updatedSchematic = schematicAPI.addWire(
@@ -419,7 +191,7 @@ extension SchematicManipulationTools on MCPServer {
       );
 
       updateSchematic(updatedSchematic);
-      
+
       final newWire = updatedSchematic.wires.last;
 
       return {
@@ -454,7 +226,7 @@ extension SchematicManipulationTools on MCPServer {
         (positionData['y'] as num).toDouble(),
         0.0,
       );
-      
+
       final diameter = (args['diameter'] as num?)?.toDouble() ?? 0.0;
 
       final updatedSchematic = schematicAPI.addJunction(
@@ -464,7 +236,7 @@ extension SchematicManipulationTools on MCPServer {
       );
 
       updateSchematic(updatedSchematic);
-      
+
       final newJunction = updatedSchematic.junctions.last;
 
       return {
@@ -508,7 +280,7 @@ extension SchematicManipulationTools on MCPServer {
       );
 
       updateSchematic(updatedSchematic);
-      
+
       final newLabel = updatedSchematic.labels.last;
 
       return {
@@ -549,7 +321,7 @@ extension SchematicManipulationTools on MCPServer {
         (positionData['y'] as num).toDouble(),
         (positionData['angle'] as num?)?.toDouble() ?? 0.0,
       );
-      
+
       final shapeStr = args['shape'] as String? ?? 'passive';
       final shape = LabelShape.values.firstWhere(
         (s) => s.name == shapeStr,
@@ -564,7 +336,7 @@ extension SchematicManipulationTools on MCPServer {
       );
 
       updateSchematic(updatedSchematic);
-      
+
       final newLabel = updatedSchematic.globalLabels.last;
 
       return {
@@ -608,7 +380,7 @@ extension SchematicManipulationTools on MCPServer {
           0.0,
         );
       }).toList();
-      
+
       final strokeWidth = (args['stroke_width'] as num?)?.toDouble() ?? 0.0;
 
       final updatedSchematic = schematicAPI.addBus(
@@ -618,7 +390,7 @@ extension SchematicManipulationTools on MCPServer {
       );
 
       updateSchematic(updatedSchematic);
-      
+
       final newBus = updatedSchematic.buses.last;
 
       return {
@@ -653,15 +425,11 @@ extension SchematicManipulationTools on MCPServer {
         (positionData['y'] as num).toDouble(),
         0.0,
       );
-      
+
       final sizeData = args['size'] as Map<String, dynamic>;
-      // final size = Size(
-      //   (sizeData['width'] as num).toDouble(),
-      //   (sizeData['height'] as num).toDouble(),
-      // );
       final width = (sizeData['width'] as num).toDouble();
       final height = (sizeData['height'] as num).toDouble();
-      
+
       final strokeWidth = (args['stroke_width'] as num?)?.toDouble() ?? 0.0;
 
       final updatedSchematic = schematicAPI.addBusEntry(
@@ -673,7 +441,7 @@ extension SchematicManipulationTools on MCPServer {
       );
 
       updateSchematic(updatedSchematic);
-      
+
       final newBusEntry = updatedSchematic.busEntries.last;
 
       return {
@@ -741,7 +509,7 @@ extension SchematicManipulationTools on MCPServer {
         (positionData['y'] as num).toDouble(),
         0.0,
       );
-      
+
       final tolerance = (args['tolerance'] as num?)?.toDouble() ?? 2.54;
 
       final foundUuids = schematicAPI.findElementsAtPosition(
@@ -752,7 +520,7 @@ extension SchematicManipulationTools on MCPServer {
 
       // Get details of found elements
       final elements = <Map<String, dynamic>>[];
-      
+
       for (final uuid in foundUuids) {
         // Check symbols
         final symbol = schematic.symbolInstances.firstWhereOrNull(
@@ -768,7 +536,7 @@ extension SchematicManipulationTools on MCPServer {
           });
           continue;
         }
-        
+
         // Check wires
         final wire = schematic.wires.firstWhereOrNull(
           (w) => w.uuid == uuid,
@@ -781,7 +549,7 @@ extension SchematicManipulationTools on MCPServer {
           });
           continue;
         }
-        
+
         // Check junctions
         final junction = schematic.junctions.firstWhereOrNull(
           (j) => j.uuid == uuid,
@@ -794,7 +562,7 @@ extension SchematicManipulationTools on MCPServer {
           });
           continue;
         }
-        
+
         // Check labels
         final label = schematic.labels.firstWhereOrNull(
           (l) => l.uuid == uuid,
@@ -808,7 +576,7 @@ extension SchematicManipulationTools on MCPServer {
           });
           continue;
         }
-        
+
         // Check global labels
         final globalLabel = schematic.globalLabels.firstWhereOrNull(
           (gl) => gl.uuid == uuid,

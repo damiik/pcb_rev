@@ -1,3 +1,34 @@
 import '../data/core.dart';
+import 'default_tools.dart';
+import 'schematic_edit_tools.dart';
 
-final List<ToolDefinition> availableTools = [];
+/// All available MCP tools for PCB reverse engineering
+final List<ToolDefinition> availableTools = [
+  ...defaultTools,
+  ...schematicEditTools,
+];
+
+/// Default MCP tools for basic PCB reverse engineering operations
+/// These tools provide core functionality for image processing and schematic analysis
+List<ToolDefinition> get defaultMcpTools => defaultTools;
+
+/// Schematic editing MCP tools for manipulating KiCad schematics
+/// These tools provide advanced functionality for modifying schematic elements
+List<ToolDefinition> get schematicEditMcpTools => schematicEditTools;
+
+/// Get tools by category
+List<ToolDefinition> getToolsByCategory(String category) {
+  switch (category) {
+    case 'default':
+      return defaultTools;
+    case 'schematic_edit':
+      return schematicEditTools;
+    default:
+      return [];
+  }
+}
+
+/// Get tool definition by name across all categories
+ToolDefinition? getToolByName(String name) {
+  return availableTools.firstWhere((tool) => tool.name == name);
+}

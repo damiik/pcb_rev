@@ -24,7 +24,7 @@ import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart'
 import '../../features/kicad/presentation/schematic_view.dart';
 import '../../features/kicad/domain/kicad_schematic_writer.dart';
 import '../../features/ai_integration/data/mcp_server.dart';
-import '../../features/ai_integration/data/mcp_server_ext.dart';
+import '../../features/ai_integration/data/schematic_edit_mcp.dart';
 
 import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
 import '../../features/connectivity/domain/connectivity_adapter.dart';
