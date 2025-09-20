@@ -93,6 +93,8 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       },
       getConnectivity: () => _connectivity,
     );
+    _mcpServer!.registerToolHandlers(_mcpServer!.extendedToolHandlers);
+    _mcpServer!.registerToolDefinitions(_mcpServer!.extendedToolDefinitions);
     _mcpServer!.start();
   }
 
