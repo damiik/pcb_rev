@@ -1,9 +1,13 @@
+import '../../../features/kicad/data/kicad_schematic_models.dart';
 import '../../../project/api/application_api.dart';
 import '../../../project/data/project.dart';
 import '../data/core.dart';
 
 /// Callback signature for when a project has been opened via an API call.
 typedef OnProjectOpenedCallback = void Function(OpenedProject);
+
+/// Callback signature for when a schematic has been loaded via an API call.
+typedef OnSchematicLoadedCallback = void Function(KiCadSchematic);
 
 /// Callback to get the current project state from the UI.
 typedef GetProjectCallback = Project? Function();
@@ -46,11 +50,26 @@ final List<ToolDefinition> projectTools = [
       'required': ['path', 'layer'],
     },
   ),
+  ToolDefinition(
+    name: 'load_schematic',
+    description: 'Loads a KiCad schematic from a specified file path.',
+    inputSchema: const {
+      'type': 'object',
+      'properties': {
+        'path': {
+          'type': 'string',
+          'description': 'The absolute path to the .kicad_sch file.',
+        },
+      },
+      'required': ['path'],
+    },
+  ),
 ];
 
 /// Returns the handler functions for the project-related MCP tools.
 Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)> getProjectToolHandlers({
   required OnProjectOpenedCallback onProjectOpened,
+  required OnSchematicLoadedCallback onSchematicLoaded,
   required GetProjectCallback getProject,
   required UpdateProjectCallback updateProject,
 }) {
@@ -117,6 +136,26 @@ Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)> getProj
         return {
           'success': false,
           'error': 'Failed to add image: ${e.toString()}',
+        };
+      }
+    },
+    'load_schematic': (args) async {
+      final path = args['path'] as String?;
+      if (path == null) {
+        throw ArgumentError('The "path" argument is required.');
+      }
+
+      try {
+        final schematic = await api.loadSchematic(path);
+        onSchematicLoaded(schematic);
+        return {
+          'success': true,
+          'message': 'Schematic loaded successfully from $path',
+        };
+      } catch (e) {
+        return {
+          'success': false,
+          'error': 'Failed to load schematic: ${e.toString()}',
         };
       }
     },

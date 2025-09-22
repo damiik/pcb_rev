@@ -104,6 +104,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     // Register project management tools
     final projectHandlers = getProjectToolHandlers(
       onProjectOpened: _applyOpenedProject, // Use the new centralized method
+      onSchematicLoaded: (schematic) => _applyLoadedSchematic(schematic, switchToView: true),
       getProject: () => currentProject,
       updateProject: (newProject) {
         setState(() {
@@ -124,6 +125,20 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       _loadedSchematic = openedProject.schematic;
       _currentImageIndex = 0;
       _currentView = ViewMode.pcb;
+    });
+    _updateConnectivity();
+  }
+
+  /// Centralized method to apply a newly loaded schematic to the application state.
+  void _applyLoadedSchematic(KiCadSchematic schematic, {String? path, bool switchToView = false}) {
+    setState(() {
+      _loadedSchematic = schematic;
+      if (switchToView) {
+        _currentView = ViewMode.schematic;
+      }
+      if (path != null && currentProject != null) {
+        currentProject = currentProject!.copyWith(schematicFilePath: path);
+      }
     });
     _updateConnectivity();
   }
@@ -163,7 +178,12 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     final file = File(defaultSchematicPath);
 
     if (await file.exists()) {
-      await _loadSchematicFile(defaultSchematicPath);
+      try {
+        final schematic = await _applicationAPI.loadSchematic(defaultSchematicPath);
+        _applyLoadedSchematic(schematic, path: defaultSchematicPath, switchToView: false);
+      } catch (e) {
+        print('Error loading default schematic: $e');
+      }
     }
   }
 
@@ -382,29 +402,22 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         });
         return;
       }
-      await _loadSchematicFile(path, switchToView: true);
-    }
-  }
-
-  Future<void> _loadSchematicFile(
-    String path, {
-    bool switchToView = false,
-  }) async {
-    final loader = KiCadSchematicLoader(path);
-    try {
-      final schematic = await loader.load();
-      setState(() {
-        _loadedSchematic = schematic;
-        if (switchToView) {
-          _currentView = ViewMode.schematic;
-        }
-        if (currentProject != null) {
-          currentProject = currentProject!.copyWith(schematicFilePath: path);
-        }
-        _updateConnectivity();
-      });
-    } catch (e) {
-      print('Error loading schematic file: $e');
+      try {
+        final schematic = await _applicationAPI.loadSchematic(path);
+        _applyLoadedSchematic(schematic, path: path, switchToView: true);
+      } catch (e) {
+        print('Error loading schematic file: $e');
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error loading schematic: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        });
+      }
     }
   }
 

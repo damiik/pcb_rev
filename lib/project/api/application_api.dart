@@ -85,4 +85,11 @@ class ApplicationAPI {
     // This might load symbols into a global cache or add a library path to the project.
     print('Opening library: $name');
   }
+
+  /// Loads a KiCad schematic file from a given path.
+  Future<KiCadSchematic> loadSchematic(String path) async {
+    final loader = KiCadSchematicLoader(path);
+    final schematic = await loader.load();
+    return schematic;
+  }
 }
