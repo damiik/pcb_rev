@@ -341,6 +341,7 @@ class MCPServer {
     };
   }
 
+  // TODO: move to domain/schematic_mcp_tools.dart  
   Future<Map<String, dynamic>> _getKiCadSchematic(
       Map<String, dynamic> args) async {
     final schematic = getSchematic();
@@ -354,6 +355,7 @@ class MCPServer {
     };
   }
 
+  // TODO: move to domain/schematic_mcp_tools.dart
   Future<Map<String, dynamic>> _getSymbolLibraries(
       Map<String, dynamic> args) async {
     final libraries = getSymbolLibraries();
@@ -361,7 +363,7 @@ class MCPServer {
       'libraries': libraries.map((lib) => kiCadLibraryToJson(lib)).toList(),
     };
   }
-
+  // TODO: to remove, repeated in domain/schematic_mcp_tools.dart
   Future<Map<String, dynamic>> _updateKiCadSchematic(
       Map<String, dynamic> args) async {
     final currentSchematic = getSchematic();

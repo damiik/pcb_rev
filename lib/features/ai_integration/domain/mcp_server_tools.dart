@@ -1,13 +1,13 @@
 import '../data/core.dart';
 import 'default_tools.dart';
-import 'project_mcp.dart';
+import 'project_mcp_tools.dart';
 import 'schematic_edit_tools.dart';
 
 /// All available MCP tools for PCB reverse engineering
 final List<ToolDefinition> availableTools = [
   ...defaultTools,
   ...schematicEditTools,
-  ...projectTools,
+  ...projectMcpTools,
 ];
 
 /// Default MCP tools for basic PCB reverse engineering operations
@@ -25,7 +25,10 @@ List<ToolDefinition> getToolsByCategory(String category) {
       return defaultTools;
     case 'schematic_edit':
       return schematicEditTools;
+    case 'project_management':
+      return projectMcpTools;
     default:
+
       return [];
   }
 }

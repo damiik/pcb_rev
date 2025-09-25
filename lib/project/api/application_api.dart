@@ -3,9 +3,15 @@ import 'dart:io';
 import 'package:uuid/uuid.dart';
 import '../../features/kicad/data/kicad_schematic_loader.dart';
 import '../../features/kicad/data/kicad_schematic_models.dart';
+import '../../features/kicad/data/kicad_symbol_models.dart' as kicad_symbol;
+import '../../features/kicad/data/kicad_symbol_loader.dart';
+import '../../features/kicad/domain/kicad_schematic_writer.dart' as kicad_writer;
 import '../data/project.dart';
 import '../../pcb_viewer/data/image_modification.dart';
+import '../../pcb_viewer/data/image_processor.dart' as image_processor;
 import '../data/visual_models.dart';
+import '../../features/connectivity/models/connectivity.dart';
+import '../../features/connectivity/api/netlist_api.dart' as netlist_api;
 
 /// A record to hold the result of opening a project, including the project data
 /// and the loaded schematic.
@@ -38,11 +44,10 @@ class ApplicationAPI {
 
   /// Saves the current project state to a file.
   /// This is a side-effect and does not return a new state.
-  Future<void> saveProject(Project project) async {
-    // In a real implementation, this would serialize the project and write to a file.
-    print('Saving project: ${project.name}');
-    // final json = projectToJson(project);
-    // await File(project.path_placeholder).writeAsString(jsonEncode(json));
+  Future<void> saveProject(Project project, String path) async {
+    final json = projectToJson(project);
+    await File(path).writeAsString(jsonEncode(json));
+    print('Project saved to: $path');
   }
 
   /// Adds a new PCB image to the project.
@@ -71,6 +76,13 @@ class ApplicationAPI {
     return project.copyWith(schematicFilePath: path, lastUpdated: DateTime.now());
   }
 
+  /// Saves the current schematic to a KiCad .kicad_sch file.
+  Future<void> saveKiCadSchematic(KiCadSchematic schematic, String path) async {
+    final content = kicad_writer.generateKiCadSchematicFileContent(schematic);
+    await File(path).writeAsString(content);
+    print('KiCad schematic saved to: $path');
+  }
+
   /// Saves the current schematic.
   /// The exact implementation depends on how schematics are managed.
   void saveSchematic(Project project) {
@@ -92,4 +104,196 @@ class ApplicationAPI {
     final schematic = await loader.load();
     return schematic;
   }
+
+  /// Exports the connectivity graph as a netlist.
+  String exportNetlist(Connectivity connectivity, {String format = 'json'}) {
+    final netlist = netlist_api.getNetlist(connectivity.graph);
+    if (format == 'spice') {
+      // TODO: Implement SPICE format conversion
+      return netlist; // For now, return JSON format
+    }
+    return netlist;
+  }
+
+  /// Processes and enhances a PCB image for analysis.
+  Future<String> processImage(String imagePath) async {
+    return await image_processor.enhanceImage(imagePath);
+  }
+
+  /// Updates image modification settings.
+  PCBImageView updateImageModification(PCBImageView image, ImageModification modification) {
+    return pcbImageViewFromJson({
+      ...pcbImageViewToJson(image),
+      'modification': imageModificationToJson(modification),
+    });
+  }
+
+  /// Adds a component to the schematic.
+  KiCadSchematic addComponent({
+    required KiCadSchematic schematic,
+    required String type,
+    required String value,
+    required String reference,
+    required kicad_symbol.Position position,
+    required kicad_symbol.LibrarySymbol? librarySymbol,
+  }) {
+    if (librarySymbol == null) {
+      throw ArgumentError('Library symbol is required to add a component');
+    }
+
+    // Check if reference is unique
+    if (reference.isNotEmpty && schematic.symbolInstances.any((inst) =>
+        inst.properties.any((prop) =>
+            prop.name == 'Reference' && prop.value == reference))) {
+      throw ArgumentError('Component with reference "$reference" already exists');
+    }
+
+    kicad_symbol.Property? maybeProperty;
+    try {
+      maybeProperty = librarySymbol.properties.firstWhere(
+        (p) => p.name == 'Reference',
+      );
+    } catch (e) {
+      maybeProperty = null;
+    }
+    final prefix = maybeProperty?.value.replaceAll(RegExp(r'\d'), '') ?? 'X';
+    final newRef = reference.isNotEmpty ? reference : generateNewRef(schematic, prefix);
+
+    final newSymbolInstance = SymbolInstance(
+      libId: librarySymbol.name,
+      at: position,
+      uuid: _uuid.v4(),
+      unit: 1,
+      inBom: true,
+      onBoard: true,
+      dnp: false,
+      properties: [
+        kicad_symbol.Property(
+          name: 'Reference',
+          value: newRef,
+          position: const kicad_symbol.Position(0, 0),
+          effects: const kicad_symbol.TextEffects(
+            font: kicad_symbol.Font(width: 1.27, height: 1.27),
+            justify: kicad_symbol.Justify.left,
+            hide: false
+          )
+        ),
+        kicad_symbol.Property(
+          name: 'Value',
+          value: value,
+          position: const kicad_symbol.Position(0, 0),
+          effects: const kicad_symbol.TextEffects(
+            font: kicad_symbol.Font(width: 1.27, height: 1.27),
+            justify: kicad_symbol.Justify.left,
+            hide: false
+          )
+        ),
+        kicad_symbol.Property(
+          name: 'Footprint',
+          value: "",
+          position: const kicad_symbol.Position(0, 0),
+          effects: const kicad_symbol.TextEffects(
+            font: kicad_symbol.Font(width: 1.27, height: 1.27),
+            justify: kicad_symbol.Justify.left,
+            hide: true
+          )
+        ),
+        kicad_symbol.Property(
+          name: 'Datasheet',
+          value: "",
+          position: const kicad_symbol.Position(0, 0),
+          effects: const kicad_symbol.TextEffects(
+            font: kicad_symbol.Font(width: 1.27, height: 1.27),
+            justify: kicad_symbol.Justify.left,
+            hide: true
+          )
+        ),
+      ],
+    );
+
+    final updatedInstances = List<SymbolInstance>.from(schematic.symbolInstances)
+      ..add(newSymbolInstance);
+
+    return schematic.copyWith(symbolInstances: updatedInstances);
+  }
+
+  /// Generates a new unique reference for a component.
+  String generateNewRef(KiCadSchematic? schematic, String prefix) {
+    int maxNum = 0;
+    if (schematic == null) return '$prefix$maxNum';
+    for (final inst in schematic.symbolInstances) {
+      final refProp = inst.properties.firstWhere(
+            (p) => p.name == 'Reference',
+        orElse: () => kicad_symbol.Property(
+          name: 'Reference',
+          value: '',
+          position: kicad_symbol.Position(0, 0),
+          effects: kicad_symbol.TextEffects(
+            font: kicad_symbol.Font(width: 1, height: 1),
+            justify: kicad_symbol.Justify.left,
+            hide: false
+          )
+        ),
+      );
+      if (refProp.value.startsWith(prefix)) {
+        try {
+          final num = int.parse(refProp.value.substring(prefix.length));
+          if (num > maxNum) {
+            maxNum = num;
+          }
+        } catch (e) {
+          // Ignore parsing errors for references like "U?"
+        }
+      }
+    }
+    return '$prefix${maxNum + 1}';
+  }
+
+  /// Get property value from a list of properties
+  String? getPropertyValue(List<kicad_symbol.Property> properties, String propertyName) {
+    for (final p in properties) {
+      if (p.name == propertyName) return p.value;
+    }
+    return null;
+  }
+
+  /// Find symbol instance by reference
+  SymbolInstance? findSymbolInstanceByReference(KiCadSchematic schematic, String reference) {
+    for (final symbolInstance in schematic.symbolInstances) {
+      final ref = getPropertyValue(symbolInstance.properties, 'Reference');
+      if (ref == reference) return symbolInstance;
+    }
+    return null;
+  }
+
+
+  /// Resolve library symbol from various sources
+  kicad_symbol.LibrarySymbol? resolveLibrarySymbol({
+    required String symbolId,
+    // kicad_symbol.LibrarySymbol? selectedSymbol,
+    KiCadLibrarySymbolLoader? symbolLoader,
+    KiCadSchematic? schematic,
+  }) {
+    // First check if we have a selected symbol
+    // if (selectedSymbol != null && selectedSymbol.name == symbolId) {
+    //   return selectedSymbol;
+    // }
+    
+    // Then check the symbol loader
+    if (symbolLoader != null) {
+      final symbol = symbolLoader.getSymbolByName(symbolId);
+      if (symbol != null) return symbol;
+    }
+    
+    // Finally check the schematic's library
+    if (schematic?.library?.librarySymbols != null) {
+      final matches = schematic!.library!.librarySymbols
+          .where((s) => s.name == symbolId);
+      if (matches.isNotEmpty) return matches.first;
+    }
+    
+    return null;
+  }
 }
+
+

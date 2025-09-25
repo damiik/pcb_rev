@@ -1,17 +1,12 @@
 import 'package:pcb_rev/features/kicad/data/kicad_schematic_models.dart';
 import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart';
-import './core.dart';
 import 'mcp_server.dart';
-import '../domain/mcp_server_tools.dart';
 
 // Schematic editing tools extension for MCP Server
 extension SchematicEditingTools on MCPServer {
 
   /// Get schematic editing tool definitions from domain layer
-  List<ToolDefinition> get schematicEditToolDefinitions => schematicEditMcpTools;
-
-  /// Legacy getter for backward compatibility
-  List<ToolDefinition> get extendedToolDefinitions => schematicEditToolDefinitions;
+  // List<ToolDefinition> get schematicEditToolDefinitions => schematicEditMcpTools;
 
   /// Get schematic editing tool handlers
   Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)>
@@ -28,10 +23,6 @@ extension SchematicEditingTools on MCPServer {
             'find_elements_at_position': _findElementsAtPosition,
             'batch_add_elements': _batchAddElements,
           };
-
-  /// Legacy getter for backward compatibility
-  Map<String, Future<Map<String, dynamic>> Function(Map<String, dynamic>)>
-      get extendedToolHandlers => schematicEditToolHandlers;
 
   /// Add a symbol to the schematic
   Future<Map<String, dynamic>> _addSymbol(Map<String, dynamic> args) async {

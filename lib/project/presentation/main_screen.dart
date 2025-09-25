@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:uuid/uuid.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -13,24 +12,21 @@ import '../data/logical_models.dart';
 import '../../global_list/presentation/widgets/global_list_panel.dart';
 import '../../measurement/presentation/properties_panel.dart';
 import '../data/project.dart';
-import 'package:pcb_rev/pcb_viewer/data/image_processor.dart'
-    as image_processor;
 import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart';
 import '../../features/kicad/data/kicad_schematic_models.dart';
-import '../../features/kicad/data/kicad_schematic_loader.dart';
 import '../../features/kicad/data/kicad_symbol_loader.dart';
 import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart'
     as kicad_symbol_models;
 import '../../features/kicad/presentation/schematic_view.dart';
-import '../../features/kicad/domain/kicad_schematic_writer.dart';
 import '../../features/ai_integration/data/mcp_server.dart';
 import '../../features/ai_integration/data/schematic_edit_mcp.dart';
-import '../../features/ai_integration/domain/project_mcp.dart';
+import '../../features/ai_integration/domain/schematic_edit_tools.dart';
+import '../../features/ai_integration/data/project_mcp.dart';
+import '../../features/ai_integration/domain/project_mcp_tools.dart';
 
 import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
 import '../../features/connectivity/domain/connectivity_adapter.dart';
 import '../../features/connectivity/models/connectivity.dart';
-import '../../features/connectivity/api/netlist_api.dart' as netlist_api;
 import '../api/application_api.dart';
 import '../api/schematic_api.dart';
 
@@ -76,6 +72,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   }
 
   void _initializeServer() {
+
     _mcpServer = MCPServer(
       getSchematic: () => _loadedSchematic,
       updateSchematic: (newSchematic) {
@@ -98,11 +95,11 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     );
 
     // Register schematic editing tools
-    _mcpServer!.registerToolHandlers(_mcpServer!.extendedToolHandlers);
-    _mcpServer!.registerToolDefinitions(_mcpServer!.extendedToolDefinitions);
+    _mcpServer!.registerToolHandlers(_mcpServer!.schematicEditToolHandlers);
+    _mcpServer!.registerToolDefinitions(schematicEditTools);
 
-    // Register project management tools
-    final projectHandlers = getProjectToolHandlers(
+    // Register project management tools callbacks
+    final projectHandlers = _mcpServer!.projectToolHandlers(
       onProjectOpened: _applyOpenedProject, // Use the new centralized method
       onSchematicLoaded: (schematic) => _applyLoadedSchematic(schematic, switchToView: true),
       getProject: () => currentProject,
@@ -110,10 +107,12 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         setState(() {
           currentProject = newProject;
         });
-      },
+      }
     );
+
+    // Register project management tools
     _mcpServer!.registerToolHandlers(projectHandlers);
-    _mcpServer!.registerToolDefinitions(projectTools);
+    _mcpServer!.registerToolDefinitions(projectMcpTools);
 
     _mcpServer!.start();
   }
@@ -432,30 +431,22 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void _selectComponent(LogicalComponent component) {
     if (_loadedSchematic == null) return;
 
-    SymbolInstance? foundSymbolInstance;
-    for (final symbolInstance in _loadedSchematic!.symbolInstances) {
-      final reference = _getPropertyValue(symbolInstance.properties, 'Reference');
-      if (reference == component.id) {
-        foundSymbolInstance = symbolInstance;
-        break;
-      }
-    }
+    SymbolInstance? foundSymbolInstance = _applicationAPI.findSymbolInstanceByReference(_loadedSchematic!, component.id);
 
     if (foundSymbolInstance != null) {
-      final nonNullableSymbol = foundSymbolInstance;
       kicad_symbol_models.LibrarySymbol? librarySymbol;
       try {
         librarySymbol = _loadedSchematic?.library?.librarySymbols
-            .firstWhere((s) => s.name == nonNullableSymbol.libId);
+            .firstWhere((s) => s.name == foundSymbolInstance.libId);
       } catch (e) {
         librarySymbol = null; // Symbol not found
       }
 
       setState(() {
-        _selectedSymbolInstance = nonNullableSymbol;
+        _selectedSymbolInstance = foundSymbolInstance;
         _selectedLibrarySymbol = librarySymbol;
-        _centerOnPosition = nonNullableSymbol.at;
-        _selectedSymbolInstanceId = nonNullableSymbol.uuid;
+        _centerOnPosition = foundSymbolInstance.at;
+        _selectedSymbolInstanceId = foundSymbolInstance.uuid;
         _currentView = ViewMode.schematic;
       });
     }
@@ -467,19 +458,6 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     });
   }
 
-  String? _getPropertyValue(
-    List<kicad_symbol_models.Property> properties,
-    String propertyName,
-  ) {
-    for (final p in properties) {
-      if (p.name == propertyName) {
-        return p.value;
-      }
-    }
-    return null;
-  }
-
-  
 
   void _updateSymbolProperty(SymbolInstance symbol, kicad_symbol_models.Property updatedProperty) {
     if (_loadedSchematic == null) return;
@@ -512,20 +490,16 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       var project = currentProject!;
       for (final path in imagePaths) {
         print('[MainScreen] Processing path: $path');
-        final enhancedPath = await image_processor.enhanceImage(path);
+
+        // Use ApplicationAPI to process and add image
+        final enhancedPath = await _applicationAPI.processImage(path);
         print('[MainScreen] Enhanced image path: $enhancedPath');
-        final newImage = pcbImageViewFromJson({
-          'id': DateTime.now().millisecondsSinceEpoch.toString(),
-          'path': enhancedPath,
-          'layer': 'top',
-          'componentPlacements': <String, dynamic>{},
-          'modification': imageModificationToJson(
-            createDefaultImageModification(),
-          ),
-        });
-        final updatedImages = List<PCBImageView>.from(project.pcbImages)
-          ..add(newImage);
-        project = project.copyWith(pcbImages: updatedImages);
+
+        project = _applicationAPI.addImage(
+          project: project,
+          path: enhancedPath,
+          layer: 'top',
+        );
         print('[MainScreen] Added new image to project state.');
       }
 
@@ -537,6 +511,14 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       });
     } catch (e) {
       print('[MainScreen] Error during image drop processing: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error processing images: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       setState(() {
         print('[MainScreen] Setting processing state to false.');
@@ -608,7 +590,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       maybeProperty = null;
     }
     final prefix = maybeProperty?.value.replaceAll(RegExp(r'\d'), '') ?? 'X';
-    final newRef = reference.isNotEmpty ? reference : _generateNewRef(prefix);
+    final newRef = reference.isNotEmpty ? reference : _applicationAPI.generateNewRef(_loadedSchematic, prefix);
 
     final newSymbolInstance = SymbolInstance(
       libId: librarySymbol.name,
@@ -635,27 +617,6 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     _updateConnectivity();
   }
 
-  String _generateNewRef(String prefix) {
-    int maxNum = 0;
-    for (final inst in _loadedSchematic!.symbolInstances) {
-      final refProp = inst.properties.firstWhere(
-            (p) => p.name == 'Reference',
-        orElse: () => kicad_symbol_models.Property(name: 'Reference', value: '', position: kicad_symbol_models.Position(0, 0), effects: kicad_symbol_models.TextEffects(font: kicad_symbol_models.Font(width: 1, height: 1), justify: kicad_symbol_models.Justify.left, hide: false)),
-      );
-      if (refProp.value.startsWith(prefix)) {
-        try {
-          final num = int.parse(refProp.value.substring(prefix.length));
-          if (num > maxNum) {
-            maxNum = num;
-          }
-        } catch (e) {
-          // Ignore parsing errors for references like "U?"
-        }
-      }
-    }
-    return '$prefix${maxNum + 1}';
-  }
-
 
   void _addSymbolInstance() {
 
@@ -673,14 +634,11 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     // final librarySymbol = _symbolLoader!.getSymbolByName(type);
     // Try to resolve the library symbol from selected, loader, or schematic library in a null-safe way.
     kicad_symbol_models.LibrarySymbol? librarySymbol = _selectedLibrarySymbol; // ?? _selectedlibrarySymbol : _symbolLoader?.getSymbolByName(type);
-    if (librarySymbol == null && _loadedSchematic?.library?.librarySymbols != null) {
-      final libSymbols = _loadedSchematic!.library!.librarySymbols;
-
-      final matches = libSymbols.where((s) => s.name == _selectedSymbolInstance?.libId);
-      if (matches.isNotEmpty) {
-        librarySymbol = matches.first;
-      }
-    }
+    librarySymbol ??= _applicationAPI.resolveLibrarySymbol(
+      symbolId: _selectedSymbolInstance?.libId ?? '',
+      symbolLoader: _symbolLoader,
+      schematic: _loadedSchematic,
+    );
 
     if (librarySymbol == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -744,7 +702,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       _loadedSchematic = _schematicAPI.addSymbolInstance(
         schematic: _loadedSchematic!,
         symbolLibId: librarySymbol!.name,
-        reference: _generateNewRef(prefix),
+        reference: _applicationAPI.generateNewRef(_loadedSchematic, prefix),
         value: propertyValue.value,
         position: kicad_symbol_models.Position(150, 100), // Default position
       );
@@ -849,8 +807,23 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     );
 
     if (outputFile != null) {
-      final file = File(outputFile);
-      await file.writeAsString(jsonEncode(projectToJson(currentProject!)));
+      try {
+        await _applicationAPI.saveProject(currentProject!, outputFile);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Project saved successfully to $outputFile')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saving project: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -895,39 +868,52 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
   Future<void> _exportNetlist() async {
     if (_connectivity == null) {
-      print('Cannot export netlist, connectivity not available.');
-      // Optionally, show a snackbar to the user
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Connectivity data not available. Is a schematic loaded?'),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Connectivity data not available. Is a schematic loaded?'),
+          ),
+        );
+      }
       return;
     }
-    final netlist = netlist_api.getNetlist(_connectivity!.graph);
-    // Further export logic would go here (e.g., save to file)
-    print('--- Generated Netlist (JSON) ---');
-    print(netlist);
-    print('---------------------------------');
 
-    // For demonstration, also show a dialog
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Generated Netlist'),
-        content: Scrollbar(
-          child: SingleChildScrollView(
-            child: Text(netlist),
+    try {
+      final netlist = _applicationAPI.exportNetlist(_connectivity!);
+      print('--- Generated Netlist (JSON) ---');
+      print(netlist);
+      print('---------------------------------');
+
+      // For demonstration, also show a dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Generated Netlist'),
+            content: Scrollbar(
+              child: SingleChildScrollView(
+                child: Text(netlist),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text('Close'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text('Close'),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error exporting netlist: $e'),
+            backgroundColor: Colors.red,
           ),
-        ],
-      ),
-    );
+        );
+      }
+    }
   }
 
   Future<void> _saveKiCadSchematic() async {
@@ -952,29 +938,23 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
     if (outputFile != null) {
       try {
-        final content = generateKiCadSchematicFileContent(_loadedSchematic!);
-        final file = File(outputFile);
-        await file.writeAsString(content);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Schematic saved successfully to $outputFile'),
-              ),
-            );
-          }
-        });
+        await _applicationAPI.saveKiCadSchematic(_loadedSchematic!, outputFile);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Schematic saved successfully to $outputFile'),
+            ),
+          );
+        }
       } catch (e) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error saving schematic: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saving schematic: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
