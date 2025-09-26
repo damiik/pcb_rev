@@ -1,6 +1,6 @@
-import 'package:pcb_rev/features/kicad/domain/kicad_symbol_parser.dart';
-import 'package:pcb_rev/features/kicad/domain/kicad_tokenizer.dart';
-import 'package:pcb_rev/features/kicad/domain/kicad_sexpr_parser.dart';
+import 'package:pcb_rev/kicad/domain/kicad_symbol_parser.dart';
+import 'package:pcb_rev/kicad/domain/kicad_tokenizer.dart';
+import 'package:pcb_rev/kicad/domain/kicad_sexpr_parser.dart';
 import 'dart:io';
 
 void main() async {

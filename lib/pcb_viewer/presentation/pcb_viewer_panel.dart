@@ -8,7 +8,7 @@ import '../../project/data/project.dart';
 import '../../project/data/logical_models.dart';
 import '../data/capture_service.dart';
 import '../data/image_modification.dart';
-import 'package:pcb_rev/features/kicad/data/kicad_symbol_loader.dart';
+import 'package:pcb_rev/kicad/data/kicad_symbol_loader.dart';
 
 class PCBViewerPanel extends StatefulWidget {
   final Project? project;

@@ -1,5 +1,5 @@
-import 'package:pcb_rev/features/kicad/data/kicad_symbol_loader.dart';
-import 'package:pcb_rev/features/kicad/domain/kicad_symbol_parser.dart';
+import 'package:pcb_rev/kicad/data/kicad_symbol_loader.dart';
+import 'package:pcb_rev/kicad/domain/kicad_symbol_parser.dart';
 import 'dart:io';
 
 void main() async {

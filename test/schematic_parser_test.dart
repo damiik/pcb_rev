@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pcb_rev/features/kicad/data/kicad_schematic_loader.dart';
-import 'package:pcb_rev/features/kicad/data/kicad_schematic_models.dart';
+import 'package:pcb_rev/kicad/data/kicad_schematic_loader.dart';
+import 'package:pcb_rev/kicad/data/kicad_schematic_models.dart';
 
 void main() {
   test('KiCad Schematic Parser Test', () async {

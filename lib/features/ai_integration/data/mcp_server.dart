@@ -7,10 +7,10 @@ import 'package:shelf/shelf_io.dart' as shelf_io;
 // import 'package:shelf_sse/shelf_sse.dart';
 
 
-import 'package:pcb_rev/features/kicad/data/kicad_schematic_deserializer.dart';
-import 'package:pcb_rev/features/kicad/data/kicad_schematic_models.dart';
-import 'package:pcb_rev/features/kicad/data/kicad_schematic_serializer.dart';
-import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart';
+import 'package:pcb_rev/kicad/data/kicad_schematic_deserializer.dart';
+import 'package:pcb_rev/kicad/data/kicad_schematic_models.dart';
+import 'package:pcb_rev/kicad/data/kicad_schematic_serializer.dart';
+import 'package:pcb_rev/kicad/data/kicad_symbol_models.dart';
 import 'package:pcb_rev/pcb_viewer/data/capture_service.dart';
 import 'package:pcb_rev/project/api/schematic_api.dart' ;
 

@@ -1,5 +1,5 @@
-import '../../kicad/data/kicad_schematic_models.dart';
-import '../../kicad/data/kicad_symbol_models.dart' as kicad_symbol_models;
+import '../../../kicad/data/kicad_schematic_models.dart';
+import '../../../kicad/data/kicad_symbol_models.dart' as kicad_symbol_models;
 import '../../../project/api/application_api.dart';
 import '../../../project/data/project.dart';
 import '../../connectivity/models/connectivity.dart';

@@ -1,9 +1,9 @@
 import '../models/core.dart';
 import '../models/point.dart';
 import 'tools.dart';
-import '../../kicad/data/kicad_schematic_models.dart' as kicad_schematic;
-import '../../kicad/data/kicad_symbol_models.dart' as kicad_symbol;
-import '../../kicad/domain/kicad_schematic_helpers.dart';
+import '../../../kicad/data/kicad_schematic_models.dart' as kicad_schematic;
+import '../../../kicad/data/kicad_symbol_models.dart' as kicad_symbol;
+import '../../../kicad/domain/kicad_schematic_helpers.dart';
 
 /// Buduje graf connectivity z modelu schematu KiCad.
 /// Obsługuje: symbole + piny, junctions, labels, wires.

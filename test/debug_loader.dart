@@ -1,4 +1,4 @@
-import 'package:pcb_rev/features/kicad/data/kicad_symbol_loader.dart';
+import 'package:pcb_rev/kicad/data/kicad_symbol_loader.dart';
 
 void main() async {
   final loader = KiCadLibrarySymbolLoader(

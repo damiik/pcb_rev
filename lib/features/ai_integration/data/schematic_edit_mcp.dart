@@ -1,5 +1,5 @@
-import 'package:pcb_rev/features/kicad/data/kicad_schematic_models.dart';
-import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart';
+import 'package:pcb_rev/kicad/data/kicad_schematic_models.dart';
+import 'package:pcb_rev/kicad/data/kicad_symbol_models.dart';
 import 'mcp_server.dart';
 
 // Schematic editing tools extension for MCP Server

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pcb_rev/features/kicad/data/kicad_symbol_loader.dart';
+import 'package:pcb_rev/kicad/data/kicad_symbol_loader.dart';
 
 void main() {
   group('KiCad Symbol Library Tests', () {

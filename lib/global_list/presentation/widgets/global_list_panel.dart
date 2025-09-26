@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_core;
 import '../../../project/data/logical_models.dart';
-import '../../../features/kicad/data/kicad_schematic_models.dart';
-import '../../../features/kicad/data/kicad_symbol_models.dart' as kicad_models;
+import '../../../kicad/data/kicad_schematic_models.dart';
+import '../../../kicad/data/kicad_symbol_models.dart' as kicad_models;
 
 class GlobalListPanel extends StatefulWidget {
   final List<LogicalComponent> components;

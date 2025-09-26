@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:uuid/uuid.dart';
-import '../../features/kicad/data/kicad_schematic_loader.dart';
-import '../../features/kicad/data/kicad_schematic_models.dart';
-import '../../features/kicad/data/kicad_symbol_models.dart' as kicad_symbol;
-import '../../features/kicad/data/kicad_symbol_loader.dart';
-import '../../features/kicad/domain/kicad_schematic_writer.dart' as kicad_writer;
+import '../../kicad/data/kicad_schematic_loader.dart';
+import '../../kicad/data/kicad_schematic_models.dart';
+import '../../kicad/data/kicad_symbol_models.dart' as kicad_symbol;
+import '../../kicad/data/kicad_symbol_loader.dart';
+import '../../kicad/domain/kicad_schematic_writer.dart' as kicad_writer;
 import '../data/project.dart';
 import '../../pcb_viewer/data/image_modification.dart';
 import '../../pcb_viewer/data/image_processor.dart' as image_processor;

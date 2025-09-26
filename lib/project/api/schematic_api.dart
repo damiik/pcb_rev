@@ -3,8 +3,8 @@
 
 import 'package:uuid/uuid.dart';
 import 'dart:ui';
-import '../../features/kicad/data/kicad_schematic_models.dart';
-import '../../features/kicad/data/kicad_symbol_models.dart' as symbol_models;
+import '../../kicad/data/kicad_schematic_models.dart';
+import '../../kicad/data/kicad_symbol_models.dart' as symbol_models;
 
 /// API functions for creating and updating KiCad schematic elements
 class KiCadSchematicAPI {

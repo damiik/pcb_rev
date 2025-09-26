@@ -12,12 +12,12 @@ import '../data/logical_models.dart';
 import '../../global_list/presentation/widgets/global_list_panel.dart';
 import '../../measurement/presentation/properties_panel.dart';
 import '../data/project.dart';
-import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart';
-import '../../features/kicad/data/kicad_schematic_models.dart';
-import '../../features/kicad/data/kicad_symbol_loader.dart';
-import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart'
+import 'package:pcb_rev/kicad/data/kicad_symbol_models.dart';
+import '../../kicad/data/kicad_schematic_models.dart';
+import '../../kicad/data/kicad_symbol_loader.dart';
+import 'package:pcb_rev/kicad/data/kicad_symbol_models.dart'
     as kicad_symbol_models;
-import '../../features/kicad/presentation/schematic_view.dart';
+import '../../kicad/presentation/schematic_view.dart';
 import '../../features/ai_integration/data/mcp_server.dart';
 import '../../features/ai_integration/data/schematic_edit_mcp.dart';
 import '../../features/ai_integration/domain/schematic_edit_tools.dart';
