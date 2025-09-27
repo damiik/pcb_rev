@@ -6,6 +6,7 @@ import '../../kicad/data/kicad_schematic_models.dart';
 import '../../kicad/data/kicad_symbol_models.dart' as kicad_symbol;
 import '../../kicad/data/kicad_symbol_loader.dart';
 import '../../kicad/domain/kicad_schematic_writer.dart' as kicad_writer;
+import '../../kicad/api/kicad_schematic_api_impl.dart';
 import '../data/project.dart';
 import '../../pcb_viewer/data/image_modification.dart';
 import '../../pcb_viewer/data/image_processor.dart' as image_processor;
@@ -20,6 +21,7 @@ typedef OpenedProject = ({Project project, KiCadSchematic? schematic});
 /// API functions for application-level operations like managing projects and files.
 class ApplicationAPI {
   final _uuid = Uuid();
+  final _schematicApi = KiCadSchematicAPIImpl();
 
   /// Opens a project from a given path, reads the project file, and loads the
   /// associated schematic if it exists.
@@ -129,7 +131,7 @@ class ApplicationAPI {
   }
 
   /// Adds a component to the schematic.
-  KiCadSchematic addComponent({
+  KiCadSchematic addComponentX({
     required KiCadSchematic schematic,
     required String type,
     required String value,
@@ -157,7 +159,7 @@ class ApplicationAPI {
       maybeProperty = null;
     }
     final prefix = maybeProperty?.value.replaceAll(RegExp(r'\d'), '') ?? 'X';
-    final newRef = reference.isNotEmpty ? reference : generateNewRef(schematic, prefix);
+    final newRef = reference.isNotEmpty ? reference : _schematicApi.generateNewRef(schematic, prefix);
 
     final newSymbolInstance = SymbolInstance(
       libId: librarySymbol.name,
@@ -217,83 +219,6 @@ class ApplicationAPI {
     return schematic.copyWith(symbolInstances: updatedInstances);
   }
 
-  /// Generates a new unique reference for a component.
-  String generateNewRef(KiCadSchematic? schematic, String prefix) {
-    int maxNum = 0;
-    if (schematic == null) return '$prefix$maxNum';
-    for (final inst in schematic.symbolInstances) {
-      final refProp = inst.properties.firstWhere(
-            (p) => p.name == 'Reference',
-        orElse: () => kicad_symbol.Property(
-          name: 'Reference',
-          value: '',
-          position: kicad_symbol.Position(0, 0),
-          effects: kicad_symbol.TextEffects(
-            font: kicad_symbol.Font(width: 1, height: 1),
-            justify: kicad_symbol.Justify.left,
-            hide: false
-          )
-        ),
-      );
-      if (refProp.value.startsWith(prefix)) {
-        try {
-          final num = int.parse(refProp.value.substring(prefix.length));
-          if (num > maxNum) {
-            maxNum = num;
-          }
-        } catch (e) {
-          // Ignore parsing errors for references like "U?"
-        }
-      }
-    }
-    return '$prefix${maxNum + 1}';
-  }
-
-  /// Get property value from a list of properties
-  String? getPropertyValue(List<kicad_symbol.Property> properties, String propertyName) {
-    for (final p in properties) {
-      if (p.name == propertyName) return p.value;
-    }
-    return null;
-  }
-
-  /// Find symbol instance by reference
-  SymbolInstance? findSymbolInstanceByReference(KiCadSchematic schematic, String reference) {
-    for (final symbolInstance in schematic.symbolInstances) {
-      final ref = getPropertyValue(symbolInstance.properties, 'Reference');
-      if (ref == reference) return symbolInstance;
-    }
-    return null;
-  }
-
-
-  /// Resolve library symbol from various sources
-  kicad_symbol.LibrarySymbol? resolveLibrarySymbol({
-    required String symbolId,
-    // kicad_symbol.LibrarySymbol? selectedSymbol,
-    KiCadLibrarySymbolLoader? symbolLoader,
-    KiCadSchematic? schematic,
-  }) {
-    // First check if we have a selected symbol
-    // if (selectedSymbol != null && selectedSymbol.name == symbolId) {
-    //   return selectedSymbol;
-    // }
-    
-    // Then check the symbol loader
-    if (symbolLoader != null) {
-      final symbol = symbolLoader.getSymbolByName(symbolId);
-      if (symbol != null) return symbol;
-    }
-    
-    // Finally check the schematic's library
-    if (schematic?.library?.librarySymbols != null) {
-      final matches = schematic!.library!.librarySymbols
-          .where((s) => s.name == symbolId);
-      if (matches.isNotEmpty) return matches.first;
-    }
-    
-    return null;
-  }
 }
 
 

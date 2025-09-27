@@ -11,8 +11,8 @@ import 'package:pcb_rev/kicad/data/kicad_schematic_deserializer.dart';
 import 'package:pcb_rev/kicad/data/kicad_schematic_models.dart';
 import 'package:pcb_rev/kicad/data/kicad_schematic_serializer.dart';
 import 'package:pcb_rev/kicad/data/kicad_symbol_models.dart';
+import 'package:pcb_rev/kicad/api/kicad_schematic_api_impl.dart';
 import 'package:pcb_rev/pcb_viewer/data/capture_service.dart';
-import 'package:pcb_rev/project/api/schematic_api.dart' ;
 
 import '../../connectivity/models/connectivity.dart';
 import '../../connectivity/api/netlist_api.dart' as netlist_api;
@@ -46,9 +46,9 @@ class MCPServer {
   final GetConnectivityCallback getConnectivity;
 
     // Initialize the schematic API instance
-  final _schematicAPI = KiCadSchematicAPI();
+  final _schematicAPI = KiCadSchematicAPIImpl();
 
-  KiCadSchematicAPI get schematicAPI => _schematicAPI;
+  KiCadSchematicAPIImpl get schematicAPI => _schematicAPI;
 
   final Map<String, dynamic> serverInfo = const {
     'name': 'pcb-reverse-engineering-server',

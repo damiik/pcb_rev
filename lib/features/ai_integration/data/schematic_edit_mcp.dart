@@ -45,18 +45,18 @@ extension SchematicEditingTools on MCPServer {
         (positionData['angle'] as num?)?.toDouble() ?? 0.0,
       );
 
-      final angle = (args['angle'] as num?)?.toDouble() ?? 0.0;
+      // final angle = (args['angle'] as num?)?.toDouble() ?? 0.0;
       final mirrorX = args['mirror_x'] as bool? ?? false;
       final mirrorY = args['mirror_y'] as bool? ?? false;
       final unit = args['unit'] as int? ?? 1;
 
       final updatedSchematic = schematicAPI.addSymbolInstance(
         schematic: schematic,
-        symbolLibId: symbolLibId,
+        libId: symbolLibId,
         reference: reference,
         value: value,
         position: position,
-        angle: angle,
+        // angle: angle,
         mirrorX: mirrorX,
         mirrorY: mirrorY,
         unit: unit,
@@ -119,7 +119,7 @@ extension SchematicEditingTools on MCPServer {
 
       final updatedSchematic = schematicAPI.updateSymbolInstance(
         schematic: schematic,
-        symbolUuid: symbolUuid,
+        uuid: symbolUuid,
         reference: reference,
         value: value,
         position: position,
@@ -464,10 +464,7 @@ extension SchematicEditingTools on MCPServer {
     try {
       final uuid = args['uuid'] as String;
 
-      final updatedSchematic = schematicAPI.removeElement(
-        schematic: schematic,
-        uuid: uuid,
-      );
+      final updatedSchematic = schematicAPI.removeElement(schematic, uuid);
 
       updateSchematic(updatedSchematic);
 
@@ -503,10 +500,10 @@ extension SchematicEditingTools on MCPServer {
 
       final tolerance = (args['tolerance'] as num?)?.toDouble() ?? 2.54;
 
-      final foundUuids = schematicAPI.findElementsAtPosition(
+      final foundUuids = schematicAPI.findElementsAt(
         schematic: schematic,
         position: position,
-        tolerance: tolerance,
+        tolerance: tolerance
       );
 
       // Get details of found elements
@@ -624,7 +621,7 @@ extension SchematicEditingTools on MCPServer {
           case 'symbol':
             currentSchematic = schematicAPI.addSymbolInstance(
               schematic: currentSchematic,
-              symbolLibId: data['symbol_lib_id'] as String,
+              libId: data['symbol_lib_id'] as String,
               reference: data['reference'] as String,
               value: data['value'] as String,
               position: Position(

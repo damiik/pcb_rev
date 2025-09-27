@@ -15,6 +15,7 @@ import '../data/project.dart';
 import 'package:pcb_rev/kicad/data/kicad_symbol_models.dart';
 import '../../kicad/data/kicad_schematic_models.dart';
 import '../../kicad/data/kicad_symbol_loader.dart';
+import '../../kicad/api/kicad_schematic_api_impl.dart';
 import 'package:pcb_rev/kicad/data/kicad_symbol_models.dart'
     as kicad_symbol_models;
 import '../../kicad/presentation/schematic_view.dart';
@@ -28,7 +29,6 @@ import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_
 import '../../features/connectivity/domain/connectivity_adapter.dart';
 import '../../features/connectivity/models/connectivity.dart';
 import '../api/application_api.dart';
-import '../api/schematic_api.dart';
 
 
 enum ViewMode { pcb, schematic }
@@ -43,7 +43,7 @@ class PCBAnalyzerApp extends StatefulWidget {
 class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
   final _applicationAPI = ApplicationAPI();
-  final _schematicAPI = KiCadSchematicAPI();
+  final _schematicApi = KiCadSchematicAPIImpl();
   MCPServer? _mcpServer;
   ViewMode _currentView = ViewMode.pcb;
   Project? currentProject;
@@ -431,7 +431,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void _selectComponent(LogicalComponent component) {
     if (_loadedSchematic == null) return;
 
-    SymbolInstance? foundSymbolInstance = _applicationAPI.findSymbolInstanceByReference(_loadedSchematic!, component.id);
+    SymbolInstance? foundSymbolInstance = _schematicApi.findSymbolInstanceByReference(_loadedSchematic!, component.id);
 
     if (foundSymbolInstance != null) {
       kicad_symbol_models.LibrarySymbol? librarySymbol;
@@ -590,7 +590,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       maybeProperty = null;
     }
     final prefix = maybeProperty?.value.replaceAll(RegExp(r'\d'), '') ?? 'X';
-    final newRef = reference.isNotEmpty ? reference : _applicationAPI.generateNewRef(_loadedSchematic, prefix);
+    final newRef = reference.isNotEmpty ? reference : _schematicApi.generateNewRef(_loadedSchematic, prefix);
 
     final newSymbolInstance = SymbolInstance(
       libId: librarySymbol.name,
@@ -634,7 +634,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     // final librarySymbol = _symbolLoader!.getSymbolByName(type);
     // Try to resolve the library symbol from selected, loader, or schematic library in a null-safe way.
     kicad_symbol_models.LibrarySymbol? librarySymbol = _selectedLibrarySymbol; // ?? _selectedlibrarySymbol : _symbolLoader?.getSymbolByName(type);
-    librarySymbol ??= _applicationAPI.resolveLibrarySymbol(
+    librarySymbol ??= _schematicApi.resolveLibrarySymbol(
       symbolId: _selectedSymbolInstance?.libId ?? '',
       symbolLoader: _symbolLoader,
       schematic: _loadedSchematic,
@@ -699,10 +699,10 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
     // Use the new API to add the symbol
     setState(() {
-      _loadedSchematic = _schematicAPI.addSymbolInstance(
+      _loadedSchematic = _schematicApi.addSymbolInstance(
         schematic: _loadedSchematic!,
-        symbolLibId: librarySymbol!.name,
-        reference: _applicationAPI.generateNewRef(_loadedSchematic, prefix),
+        libId: librarySymbol!.name,
+        reference: _schematicApi.generateNewRef(_loadedSchematic, prefix),
         value: propertyValue.value,
         position: kicad_symbol_models.Position(150, 100), // Default position
       );
@@ -716,7 +716,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   ) {
     if (_loadedSchematic == null) return;
 
-    final updatedSchematic = _schematicAPI.addWire(
+    final updatedSchematic = _schematicApi.addWire(
       schematic: _loadedSchematic!,
       points: [start, end],
     );
@@ -731,7 +731,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void addJunctionAtPosition(Position position) {
     if (_loadedSchematic == null) return;
 
-    final updatedSchematic = _schematicAPI.addJunction(
+    final updatedSchematic = _schematicApi.addJunction(
       schematic: _loadedSchematic!,
       position: position,
     );
@@ -746,7 +746,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void addNetLabel(String netName, Position position) {
     if (_loadedSchematic == null) return;
 
-    final updatedSchematic = _schematicAPI.addLabel(
+    final updatedSchematic = _schematicApi.addLabel(
       schematic: _loadedSchematic!,
       text: netName,
       position: position,

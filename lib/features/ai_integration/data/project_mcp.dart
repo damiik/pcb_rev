@@ -1,4 +1,5 @@
 import '../../../kicad/data/kicad_schematic_models.dart';
+import '../../../kicad/api/kicad_schematic_api_impl.dart';
 import '../../../kicad/data/kicad_symbol_models.dart' as kicad_symbol_models;
 import '../../../project/api/application_api.dart';
 import '../../../project/data/project.dart';
@@ -36,6 +37,8 @@ extension ProjectMCPTools on MCPServer {
     required UpdateProjectCallback updateProject
   }) {
     final api = ApplicationAPI();
+    final schematicApi = KiCadSchematicAPIImpl();
+
 
     return {
       'open_project': (args) async {
@@ -287,7 +290,7 @@ extension ProjectMCPTools on MCPServer {
             };
           }
 
-          final updatedSchematic = api.addComponent(
+          final updatedSchematic = schematicApi.addComponent(
             schematic: currentSchematic,
             type: type,
             value: value,
