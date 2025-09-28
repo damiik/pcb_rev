@@ -32,7 +32,7 @@ class KiCadSchematicAPIImpl implements KiCadSchematicAPI {
   @override
   KiCadSchematic addComponent({
     required KiCadSchematic schematic,
-    required String type, // Symbol name in library
+    required String symbolName, // Symbol name in library
     required String value,
     required symbol.Position position,
     String reference = '',
@@ -43,7 +43,7 @@ class KiCadSchematicAPIImpl implements KiCadSchematicAPI {
   }) {
     if (librarySymbol == null) {
       final libSymbols = schematic.library!.librarySymbols;
-      final matches = libSymbols.where((s) => s.name == type);
+      final matches = libSymbols.where((s) => s.name == symbolName);
       if (matches.isNotEmpty) {
         librarySymbol = matches.first;
       }

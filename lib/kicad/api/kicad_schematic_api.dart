@@ -20,7 +20,7 @@ abstract class KiCadSchematicAPI {
   /// Adds a new symbol instance to the schematic.
   KiCadSchematic addComponent({
     required KiCadSchematic schematic,
-    required String type,
+    required String symbolName, // Symbol name in library
     required String value,
     required symbol.Position position,
     String reference = '',

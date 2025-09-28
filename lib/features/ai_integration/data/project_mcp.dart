@@ -228,13 +228,13 @@ extension ProjectMCPTools on MCPServer {
         }
       },
       'add_component': (args) async {
-        final type = args['type'] as String?;
+        final symbolName = args['type'] as String?;
         final value = args['value'] as String?;
         final reference = args['reference'] as String?;
         final position = args['position'] as Map<String, dynamic>?;
 
-        if (type == null || value == null || reference == null || position == null) {
-          throw ArgumentError('The "type", "value", "reference", and "position" arguments are required.');
+        if (symbolName == null || value == null || reference == null || position == null) {
+          throw ArgumentError('The "symbolName", "value", "reference", and "position" arguments are required.');
         }
 
         final currentProject = getProject();
@@ -255,7 +255,7 @@ extension ProjectMCPTools on MCPServer {
           // For now, we'll use a placeholder library symbol
           // In a real implementation, this would be resolved from the symbol library
           final librarySymbol = kicad_symbol_models.LibrarySymbol(
-            name: type,
+            name: symbolName,
             pinNames: const kicad_symbol_models.PinNames(offset: 0.0),
             inBom: true,
             hidePinNumbers: false,
@@ -292,7 +292,7 @@ extension ProjectMCPTools on MCPServer {
 
           final updatedSchematic = schematicApi.addComponent(
             schematic: currentSchematic,
-            type: type,
+            symbolName: symbolName,
             value: value,
             reference: reference,
             position: pos,
@@ -305,7 +305,7 @@ extension ProjectMCPTools on MCPServer {
             'success': true,
             'message': 'Component added successfully',
             'component_reference': reference,
-            'component_type': type,
+            'component_type': symbolName,
             'component_value': value,
           };
         } catch (e) {

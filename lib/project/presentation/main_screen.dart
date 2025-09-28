@@ -188,34 +188,13 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
   void _updateConnectivity() {
     if (_loadedSchematic != null && _symbolLoader != null) {
-      // Combine symbols from the schematic's library and the external loader
-      final allSymbols = <kicad_symbol_models.LibrarySymbol>[];
-      if (_loadedSchematic!.library != null) {
-        allSymbols.addAll(_loadedSchematic!.library!.librarySymbols);
-      }
-      allSymbols.addAll(_symbolLoader!.getSymbols());
 
-      // Create a new library with all symbols, removing duplicates
-      final uniqueSymbols = <kicad_symbol_models.LibrarySymbol>[];
-      final seenNames = <String>{};
-      for (final symbol in allSymbols) {
-        if (seenNames.add(symbol.name)) {
-          uniqueSymbols.add(symbol);
-        }
-      }
-
-      final completeLibrary = kicad_symbol_models.KiCadLibrary(
-        version: _loadedSchematic?.version ?? '20210101',
-        generator: _loadedSchematic?.generator ?? 'pcb_rev',
-        librarySymbols: uniqueSymbols,
-      );
-
-      final connectivity = ConnectivityAdapter.fromSchematic(
-        _loadedSchematic!,
-        completeLibrary,
-      );
+      final connectivityAdapter = ConnectivityAdapter();
       setState(() {
-        _connectivity = connectivity;
+        _connectivity = connectivityAdapter.updateConnectivity(
+          schematic: _loadedSchematic!,
+          symbolLoader: _symbolLoader,
+        );
       });
     }
   }
@@ -651,20 +630,6 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       return;
     }
 
-    // Check if reference is unique
-    // if (reference.isNotEmpty && _loadedSchematic!.symbolInstances.any((inst) =>
-    //     inst.properties.any((prop) =>
-    //         prop.name == 'Reference' && prop.value == reference))) {
-    //   WidgetsBinding.instance.addPostFrameCallback((_) {
-    //     if (mounted) {
-    //       ScaffoldMessenger.of(context).showSnackBar(
-    //         SnackBar(content: Text("Component with reference '$reference' already exists.")),
-    //       );
-    //     }
-    //   });
-    //   return;
-    // }
-    
     kicad_symbol_models.Property? maybeProperty;
     try {
       maybeProperty = librarySymbol.properties.firstWhere(
@@ -757,12 +722,6 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     });
     _updateConnectivity();
   }
-
-
-
-
-
-
 
   void _addMeasurement(String type, dynamic value) {
     // This function is now only for actual measurements.
