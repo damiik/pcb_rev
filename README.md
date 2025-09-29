@@ -169,51 +169,58 @@ Model AI może interaktywnie korzystać z narzędzi udostępnianych przez serwer
 
 Architektura PCBRev opiera się na podejściu modułowym, zorientowanym na funkcje. Głównym założeniem jest **minimalistyczne i funkcyjne podejście** zamiast rozbudowanego programowania obiektowego. Logika biznesowa jest implementowana jako zbiory czystych funkcji, a modele danych są niezmiennymi strukturami (rekordami). Takie podejście upraszcza kod, zwiększa jego przewidywalność i ułatwia testowanie. Więcej szczegółów na temat przyjętych konwencji znajduje się w dokumencie `GEMINI.md`.
 
-- **Core (`lib/core/`)**: Zawiera współdzielony kod, narzędzia i podstawowe klasy używane w całej aplikacji.
-- **Features (`lib/features/`)**: Główny katalog zawierający moduły funkcjonalne. Każdy moduł jest samodzielną jednostką z własną architekturą wewnętrzną (dane, domena, prezentacja).
+Aplikacja jest zorganizowana w moduły funkcjonalne, gdzie niektóre moduły znajdują się w katalogu `lib/features/`, a inne bezpośrednio w `lib/`. Każdy moduł jest samodzielną jednostką z własną architekturą wewnętrzną (dane, domena, prezentacja).
 
 ### 3.2. Struktura Modułów Funkcjonalnych
 
 Każdy moduł w katalogu `lib/features/` jest zorganizowany według następującego schematu:
 
 - **Data**: Warstwa danych, odpowiedzialna za źródła danych i modele (zdefiniowane jako rekordy).
-- **Domain**: Warstwa domeny, zawierająca złożoną logikę biznesową. Ta warstwa jest **opcjonalna** i występuje tylko w bardziej skomplikowanych modułach, takich jak `symbol_library`.
+- **Domain**: Warstwa domeny, zawierająca złożoną logikę biznesową. Ta warstwa jest **opcjonalna** i występuje tylko w bardziej skomplikowanych modułach, takich jak `kicad` czy `connectivity`.
 - **Presentation**: Warstwa prezentacji, odpowiedzialna za interfejs użytkownika (widgety, strony) i zarządzanie stanem.
+- **API** (opcjonalne): Interfejsy API dla komunikacji między modułami.
+- **Service** (opcjonalne): Funkcje pomocnicze i serwisy dla specyficznych operacji.
 
 ### 3.3. Diagram Architektury
 
 ```mermaid
 graph TD
-    A[PCBRev App] --> C(Features);
+    A[PCBRev App] --> B[lib/];
+    B --> C[features/];
+    B --> D[global_list/];
+    B --> E[kicad/];
+    B --> F[measurement/];
+    B --> G[pcb_viewer/];
+    B --> H[project/];
 
-    C --> G(Project);
-    C --> H(PCB Viewer);
-    C --> J(Measurement);
-    C --> K(AI Integration);
-    C --> L(Connectivity);
-    C --> M(Kicad);
-    C --> N(Global List);
+    C --> C1[ai_integration/];
+    C --> C2[connectivity/];
 
-    G --> G_Data[Data];
-    G --> G_Pres[Presentation];
+    C1 --> C1_Data[data/];
+    C1 --> C1_Domain[domain/];
+    C1 --> C1_Service[service/];
 
-    H --> H_Data[Data];
-    H --> H_Pres[Presentation];
+    C2 --> C2_API[api/];
+    C2 --> C2_Domain[domain/];
+    C2 --> C2_Graph[graph/];
+    C2 --> C2_Models[models/];
 
-    J --> J_Data[Data];
-    J --> J_Pres[Presentation];
+    D --> D_Pres[presentation/];
+    D --> D_Widgets[widgets/];
 
-    K --> K_Data[Data];
-    K --> K_Domain[Domain];
+    E --> E_Data[data/];
+    E --> E_Domain[domain/];
+    E --> E_Pres[presentation/];
 
-    L --> L_Models[Models];
-    L --> L_Domain[Domain];
+    F --> F_Data[data/];
+    F --> F_Pres[presentation/];
 
-    M --> M_Data[Data];
-    M --> M_Domain[Domain];
-    M --> M_Pres[Presentation];
+    G --> G_Data[data/];
+    G --> G_Pres[presentation/];
 
-    N --> N_Pres[Presentation];
+    H --> H_API[api/];
+    H --> H_Data[data/];
+    H --> H_Pres[presentation/];
 ```
 
 ## 4. Koncepcja Pracy i Model Danych (Workflow)
@@ -299,75 +306,76 @@ Projekt jest w fazie aktywnego rozwoju, a poniżej przedstawiono kluczowe aspekt
 ```
 pcb_rev/
 ├── lib/
+│   ├── main.dart
 │   ├── features/
 │   │   ├── ai_integration/
 │   │   │   ├── data/
 │   │   │   │   ├── core.dart
 │   │   │   │   ├── mcp_server.dart
-│   │   │   │   └── mcp_server_ext.dart
+│   │   │   │   ├── project_mcp.dart
+│   │   │   │   └── schematic_edit_mcp.dart
 │   │   │   ├── domain/
 │   │   │   │   └── mcp_server_tools.dart
 │   │   │   └── service/
 │   │   │       └── http_client.dart
-│   │   ├── connectivity/
-│   │   │   ├── api/
-│   │   │   │   └── netlist_api.dart
-│   │   │   ├── domain/
-│   │   │   │   └── connectivity_adapter.dart
-│   │   │   ├── graph/
-│   │   │   │   ├── build_graph.dart
-│   │   │   │   ├── refresh.dart
-│   │   │   │   ├── resolve_connectivity.dart
-│   │   │   │   └── tools.dart
-│   │   │   └── models/
-│   │   │       ├── connectivity.dart
-│   │   │       ├── core.dart
-│   │   │       └── point.dart
-│   │   ├── global_list/
-│   │   │   └── presentation/
-│   │   │       └── widgets/
-│   │   │           └── global_list_panel.dart
-│   │   ├── kicad/
-│   │   │   ├── data/
-│   │   │   │   ├── kicad_schematic_deserializer.dart
-│   │   │   │   ├── kicad_schematic_loader.dart
-│   │   │   │   ├── kicad_schematic_models.dart
-│   │   │   │   ├── kicad_schematic_serializer.dart
-│   │   │   │   ├── kicad_symbol_loader.dart
-│   │   │   │   └── kicad_symbol_models.dart
-│   │   │   ├── domain/
-│   │   │   │   ├── kicad_schematic_helpers.dart
-│   │   │   │   ├── kicad_schematic_parser.dart
-│   │   │   │   ├── kicad_schematic_writer.dart
-│   │   │   │   ├── kicad_sexpr_parser.dart
-│   │   │   │   ├── kicad_symbol_parser.dart
-│   │   │   │   └── kicad_tokenizer.dart
-│   │   │   └── presentation/
-│   │   │       ├── kicad_schematic_renderer.dart
-│   │   │       ├── kicad_symbol_renderer.dart
-│   │   │       └── schematic_view.dart
-│   │   ├── measurement/
-│   │   │   ├── data/
-│   │   │   │   └── measurement_service.dart
-│   │   │   └── presentation/
-│   │   │       └── properties_panel.dart
-│   │   ├── pcb_viewer/
-│   │   │   ├── data/
-│   │   │   │   ├── capture_service.dart
-│   │   │   │   ├── image_modification.dart
-│   │   │   │   └── image_processor.dart
-│   │   │   └── presentation/
-│   │   │       └── pcb_viewer_panel.dart
-│   │   └── project/
+│   │   └── connectivity/
 │   │       ├── api/
-│   │       │   └── schematic_api.dart
-│   │       ├── data/
-│   │       │   ├── logical_models.dart
-│   │       │   ├── project.dart
-│   │       │   └── visual_models.dart
-│   │       └── presentation/
-│   │           └── main_screen.dart
-│   └── main.dart
+│   │       │   └── netlist_api.dart
+│   │       ├── domain/
+│   │       │   └── connectivity_adapter.dart
+│   │       ├── graph/
+│   │       │   ├── build_graph.dart
+│   │       │   ├── refresh.dart
+│   │       │   ├── resolve_connectivity.dart
+│   │       │   └── tools.dart
+│   │       └── models/
+│   │           ├── connectivity.dart
+│   │           ├── core.dart
+│   │           └── point.dart
+│   ├── global_list/
+│   │   └── presentation/
+│   │       └── widgets/
+│   │           └── global_list_panel.dart
+│   ├── kicad/
+│   │   ├── data/
+│   │   │   ├── kicad_schematic_deserializer.dart
+│   │   │   ├── kicad_schematic_loader.dart
+│   │   │   ├── kicad_schematic_models.dart
+│   │   │   ├── kicad_schematic_serializer.dart
+│   │   │   ├── kicad_symbol_loader.dart
+│   │   │   └── kicad_symbol_models.dart
+│   │   ├── domain/
+│   │   │   ├── kicad_schematic_helpers.dart
+│   │   │   ├── kicad_schematic_parser.dart
+│   │   │   ├── kicad_schematic_writer.dart
+│   │   │   ├── kicad_sexpr_parser.dart
+│   │   │   ├── kicad_symbol_parser.dart
+│   │   │   └── kicad_tokenizer.dart
+│   │   └── presentation/
+│   │       ├── kicad_schematic_renderer.dart
+│   │       ├── kicad_symbol_renderer.dart
+│   │       └── schematic_view.dart
+│   ├── measurement/
+│   │   ├── data/
+│   │   │   └── measurement_service.dart
+│   │   └── presentation/
+│   │       └── properties_panel.dart
+│   ├── pcb_viewer/
+│   │   ├── data/
+│   │   │   ├── capture_service.dart
+│   │   │   ├── image_modification.dart
+│   │   │   └── image_processor.dart
+│   │   └── presentation/
+│   │       └── pcb_viewer_panel.dart
+│   └── project/
+│       ├── api/
+│       │   └── application_api.dart
+│       ├── data/
+│       │   ├── logical_models.dart
+│       │   ├── project.dart
+│       │   └── visual_models.dart
+│       └── presentation/
+│           └── main_screen.dart
 ├── pubspec.yaml
 ├── README.md
 ... (pozostałe pliki projektu Flutter)

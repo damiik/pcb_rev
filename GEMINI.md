@@ -67,56 +67,105 @@ switch (element) {
 
 ## 3. Architektura Funkcyjna
 
-### 3.1. Modele Danych (`lib/models/`)
-Modele są zdefiniowane jako rekordy przy użyciu `typedef`. Każdy model posiada dedykowane, czyste funkcje do serializacji i deserializacji.
+### 3.1. Struktura Modułowa (`lib/features/`)
+Projekt jest zorganizowany w moduły funkcjonalne, gdzie każdy moduł odpowiada za konkretny obszar funkcjonalności. Struktura opiera się na podejściu **feature-first**, gdzie każdy feature jest samodzielną jednostką z własną architekturą wewnętrzną.
 
-**Przykład (Position):**
-```dart
-// Definicja rekordu
-typedef Position = ({double x, double y});
-
-// Funkcje do konwersji
-Map<String, dynamic> positionToJson(Position p) => {'x': p.x, 'y': p.y};
-Position positionFromJson(Map<String, dynamic> json) => (x: json['x'], y: json['y']);
+**Struktura modułu funkcjonalnego:**
+```
+features/
+├── feature_name/
+│   ├── data/           # Modele danych i źródła danych
+│   ├── domain/         # Logika biznesowa (jeśli potrzebna)
+│   ├── presentation/   # Widgety i zarządzanie stanem UI
+│   └── api/           # Interfejsy API (opcjonalne)
 ```
 
-### 3.2. Serwisy (`lib/services/`)
-Serwisy nie są już klasami. Zostały przekształcone w zbiory funkcji top-level. Jeśli serwis musi zarządzać stanem, stan ten jest jawnie przekazywany jako argument i zwracany jako wynik funkcji.
+### 3.2. Modele Danych (`lib/features/*/data/`)
+Modele są zdefiniowane jako rekordy przy użyciu `typedef`. Każdy model posiada dedykowane, czyste funkcje do serializacji i deserializacji. Modele danych są niezmienne i znajdują się w podkatalogach `data/` poszczególnych modułów.
 
-**Przykład (MeasurementService):**
+**Przykład (z modułu connectivity):**
 ```dart
-// Rekord przechowujący stan
-typedef MeasurementState = ({
-  Map<String, double> resistanceMap,
-  Map<String, double> voltageMap
-});
+// lib/features/connectivity/models/point.dart
+typedef Point = ({double x, double y});
 
-// Czysta funkcja modyfikująca stan
-MeasurementState recordResistance(
-    MeasurementState state, String p1, String p2, double ohms) {
-  final key = _getKey(p1, p2);
-  // Zwróć nowy stan, nie modyfikuj starego
-  return (
-    ...state,
-    resistanceMap: {...state.resistanceMap, key: ohms}
-  );
+// Funkcje do konwersji
+Map<String, dynamic> pointToJson(Point p) => {'x': p.x, 'y': p.y};
+Point pointFromJson(Map<String, dynamic> json) => (x: json['x'], y: json['y']);
+```
+
+### 3.3. Logika Domenowa (`lib/features/*/domain/`)
+Logika biznesowa jest implementowana jako czyste funkcje w podkatalogach `domain/` poszczególnych modułów. Funkcje te operują na niezmiennych modelach danych i nie zarządzają stanem bezpośrednio.
+
+**Przykład (z modułu kicad):**
+```dart
+// lib/features/kicad/domain/kicad_schematic_parser.dart
+Schematic parseSchematic(List<SExpr> expressions) {
+  // Czysta funkcja parsująca S-wyrażenia na model Schematic
+  return switch (expressions) {
+    // Pattern matching dla różnych struktur danych
+    [SList(elements: [SAtom(value: 'kicad_sch'), ...final rest])] =>
+      _parseSchematicRest(rest),
+    _ => throw FormatException('Invalid schematic format')
+  };
 }
 ```
 
-### 3.3. Warstwa UI (`lib/ui/`)
+### 3.4. Warstwa Prezentacji (`lib/features/*/presentation/`)
 - **Widgety pozostają klasami:** Zgodnie z naturą Fluttera, widgety (zwłaszcza `StatefulWidget`) pozostają klasami.
-- **Zarządzanie stanem w UI:** Stan UI jest zarządzany wewnątrz `State` widgetu. Interakcje z logiką biznesową odbywają się poprzez wywoływanie funkcyjnych serwisów.
+- **Zarządzanie stanem w UI:** Stan UI jest zarządzany wewnątrz `State` widgetu. Interakcje z logiką biznesową odbywają się poprzez wywoływanie funkcji z warstwy domenowej.
 - **Przekazywanie danych:** Do widgetów przekazywane są niezmienne modele (rekordy).
+
+**Przykład (z modułu pcb_viewer):**
+```dart
+// lib/features/pcb_viewer/presentation/pcb_viewer_panel.dart
+class PCBViewerPanel extends StatefulWidget {
+  final ImageProcessor processor;
+
+  const PCBViewerPanel({super.key, required this.processor});
+
+  @override
+  State<PCBViewerPanel> createState() => _PCBViewerPanelState();
+}
+
+class _PCBViewerPanelState extends State<PCBViewerPanel> {
+  // Stan jako niezmienne rekordy
+  late ImageState _imageState;
+
+  void _updateImage(ImageModification modification) {
+    setState(() {
+      // Tworzenie nowego stanu zamiast mutacji
+      _imageState = applyModification(_imageState, modification);
+    });
+  }
+}
+```
 
 ## 4. Przepływ Pracy przy Rozwoju
 
-1.  **Definiowanie Modeli:** Zawsze zaczynaj od zdefiniowania niezmiennych rekordów w `lib/data/`.
-2.  **Tworzenie Logiki w Serwisach:** Implementuj logikę biznesową jako czyste funkcje w `lib/domain/`. Unikaj tworzenia klas-serwisów.
-3.  **Integracja z UI:**
-  - Widgety umieszczaj w ``lib/presetation``
+1.  **Analiza Modułu:** Zidentyfikuj, który moduł funkcjonalny w `lib/features/` odpowiada za wymaganą funkcjonalność.
+2.  **Definiowanie Modeli:** Zawsze zaczynaj od zdefiniowania niezmiennych rekordów w odpowiednim podkatalogu `lib/features/[nazwa_modułu]/data/`.
+3.  **Tworzenie Logiki Domenowej:** Implementuj logikę biznesową jako czyste funkcje w `lib/features/[nazwa_modułu]/domain/`. Unikaj tworzenia klas-serwisów.
+4.  **Integracja z UI:**
+  - Widgety umieszczaj w `lib/features/[nazwa_modułu]/presentation/`
   - Podłącz logikę do widgetów, zarządzając stanem wewnątrz `State` i przekazując dane w dół drzewa widgetów w sposób niezmienny.
+  - Jeśli potrzebny, zdefiniuj interfejs API w `lib/features/[nazwa_modułu]/api/`
 
-4.  **Testowanie:** Pisz testy jednostkowe dla czystych funkcji, co jest znacznie prostsze niż testowanie klas z zależnościami.
+5.  **Testowanie:** Pisz testy jednostkowe dla czystych funkcji, co jest znacznie prostsze niż testowanie klas z zależnościami.
+
+**Przykład przepływu dla dodania nowej funkcjonalności:**
+```bash
+# 1. Utworzenie struktury nowego modułu
+mkdir -p lib/features/new_feature/{data,domain,presentation}
+
+# 2. Definicja modeli w data/
+touch lib/features/new_feature/data/new_models.dart
+
+# 3. Implementacja logiki w domain/
+touch lib/features/new_feature/domain/new_logic.dart
+
+# 4. Widgety w presentation/
+touch lib/features/new_feature/presentation/new_widget.dart
+```
 
 Przestrzeganie tych zasad zapewni, że kod pozostanie prosty, łatwy do testowania i gotowy na dalszą ewolucję.
 
