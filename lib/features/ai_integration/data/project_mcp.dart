@@ -3,6 +3,7 @@ import '../../../kicad/api/kicad_schematic_api_impl.dart';
 import '../../../kicad/data/kicad_symbol_models.dart' as kicad_symbol_models;
 import '../../../project/api/application_api.dart';
 import '../../../project/data/project.dart';
+import '../../../project/data/logical_models.dart';
 import '../../connectivity/models/connectivity.dart';
 import '../data/mcp_server.dart';
 
@@ -24,6 +25,8 @@ typedef GetSchematicCallback = KiCadSchematic? Function();
 /// Callback to get the current connectivity state from the UI.
 typedef GetConnectivityCallback = Connectivity? Function();
 
+typedef OnComponentSelectedCallback = void Function(LogicalComponent); 
+
 
 /// Extension for project-related MCP tool handlers
 extension ProjectMCPTools on MCPServer {
@@ -34,7 +37,8 @@ extension ProjectMCPTools on MCPServer {
     required OnProjectOpenedCallback onProjectOpened,
     required OnSchematicLoadedCallback onSchematicLoaded,
     required GetProjectCallback getProject,
-    required UpdateProjectCallback updateProject
+    required UpdateProjectCallback updateProject,
+    required OnComponentSelectedCallback onComponentSelected, 
   }) {
     final api = ApplicationAPI();
     final schematicApi = KiCadSchematicAPIImpl();
@@ -315,6 +319,45 @@ extension ProjectMCPTools on MCPServer {
           };
         }
       },
+      'select_component': (args) async {
+        final reference = args['reference'] as String?;
+        
+        if (reference == null) {
+          throw ArgumentError('The "reference" argument is required.');
+        }
+        
+        final currentProject = getProject();
+        if (currentProject == null) {
+          return {
+            'success': false,
+            'error': 'No project is currently open.',
+          };
+        }
+        
+        // Find the logical component by reference
+        final component = currentProject.logicalComponents[reference];
+        
+        if (component == null) {
+          return {
+            'success': false,
+            'error': 'Component with reference "$reference" not found in project.',
+          };
+        }
+        
+        // Trigger the selection via callback
+        onComponentSelected(component);
+        
+        return {
+          'success': true,
+          'message': 'Component "$reference" selected.',
+          'component': {
+            'id': component.id,
+            'type': component.type,
+            'value': component.value,
+            'partNumber': component.partNumber,
+          },
+        };
+      },   
     };
   }
 }

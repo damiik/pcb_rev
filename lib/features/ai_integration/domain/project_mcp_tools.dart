@@ -136,4 +136,18 @@ final List<ToolDefinition> projectMcpTools = [
       'required': ['type', 'value', 'reference', 'position'],
     },
   ),
+  ToolDefinition(
+    name: 'select_component',
+    description: 'Selects a component on the schematic view by its reference designator (e.g., "R1", "U2"). This will highlight the component and center the view on it.',
+    inputSchema: {
+      'type': 'object',
+      'properties': {
+        'reference': {
+          'type': 'string',
+          'description': 'The component reference designator (e.g., "R1", "C5", "U1")',
+        },
+      },
+      'required': ['reference'],
+    },
+  ),
 ];
