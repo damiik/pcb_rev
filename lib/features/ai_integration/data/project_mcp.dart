@@ -333,10 +333,58 @@ extension ProjectMCPTools on MCPServer {
             'error': 'No project is currently open.',
           };
         }
-        
+        final currentSchematic = getSchematic();
+        if (currentSchematic == null) {
+          return {
+            'success': false,
+            'error': 'No schematic is currently loaded.',
+          };
+        }
+
         // Find the logical component by reference
-        final component = currentProject.logicalComponents[reference];
-        
+        // final component = currentProject.logicalComponents[reference];
+        LogicalComponent? component;
+        currentSchematic.symbolInstances.forEach(
+          (symbolInstance) {
+            final ref = symbolInstance.properties.firstWhere(
+              (prop) => prop.name == 'Reference',
+              orElse: () => kicad_symbol_models.Property(
+                name: 'Reference',
+                value: '',
+                position: kicad_symbol_models.Position(0, 0),
+                effects: kicad_symbol_models.TextEffects(
+                  font: kicad_symbol_models.Font(width: 1.27, height: 1.27),
+                  justify: kicad_symbol_models.Justify.left,
+                  hide: false,
+                ),
+              ),
+            ).value;
+            if (ref == reference) {
+              component = (
+                id: reference, // TODO: change to use component.partNumber (check other places too)
+                type: symbolInstance.libId,
+                value: symbolInstance.properties.firstWhere(
+                  (prop) => prop.name == 'Value',
+                  orElse: () => kicad_symbol_models.Property(
+                    name: 'Value',
+                    value: '',
+                    position: kicad_symbol_models.Position(0, 0),
+                    effects: kicad_symbol_models.TextEffects(
+                      font: kicad_symbol_models.Font(width: 1.27, height: 1.27),
+                      justify: kicad_symbol_models.Justify.left,
+                      hide: false,
+                    ),
+                  ),
+                ).value,
+                variant: symbolInstance.unit.toString(),
+                partNumber: reference,
+                pins: <String, Pin>{}, // Pins can be populated if needed
+              );
+            }
+          },
+        );
+
+
         if (component == null) {
           return {
             'success': false,
@@ -345,16 +393,16 @@ extension ProjectMCPTools on MCPServer {
         }
         
         // Trigger the selection via callback
-        onComponentSelected(component);
+        onComponentSelected(component!);
         
         return {
           'success': true,
           'message': 'Component "$reference" selected.',
           'component': {
-            'id': component.id,
-            'type': component.type,
-            'value': component.value,
-            'partNumber': component.partNumber,
+            'id': component!.id,
+            'type': component!.type,
+            'value': component!.value,
+            'partNumber': component!.partNumber,
           },
         };
       },   
