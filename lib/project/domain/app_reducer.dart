@@ -456,7 +456,7 @@ AppState _selectComponent(
   final result = findSymbolByReference(
     schematic: state.schematic!,
     schematicApi: schematicApi,
-    reference: action.component.id,
+    reference: action.component.id,  // TODO: change to use component.partNumber
   );
   
   if (!result.success || result.symbol == null) return state;

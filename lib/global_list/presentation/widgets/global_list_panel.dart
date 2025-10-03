@@ -5,7 +5,7 @@ import '../../../kicad/data/kicad_schematic_models.dart';
 import '../../../kicad/data/kicad_symbol_models.dart' as kicad_models;
 
 class GlobalListPanel extends StatefulWidget {
-  final List<LogicalComponent> components;
+  // final List<LogicalComponent> components;
   final List<connectivity_core.Net> nets;
   final Function(LogicalComponent) onComponentSelected;
   final Function(connectivity_core.Net) onNetSelected;
@@ -13,7 +13,7 @@ class GlobalListPanel extends StatefulWidget {
   final KiCadSchematic? schematic;
 
   GlobalListPanel({
-    required this.components,
+    // required this.components,
     required this.nets,
     required this.onComponentSelected,
     required this.onNetSelected,
@@ -110,7 +110,7 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
   }
 
   List<LogicalComponent> _filterComponents(String query) {
-    if (widget.schematic != null && widget.schematic!.symbolInstances.isNotEmpty) {
+    // if (widget.schematic != null && widget.schematic!.symbolInstances.isNotEmpty) {
       return widget.schematic!.symbolInstances
           .map((symbolInstance) {
             final reference =
@@ -133,14 +133,14 @@ class _GlobalListPanelState extends State<GlobalListPanel> {
               component.type.toLowerCase().contains(query) ||
               (component.value?.toLowerCase().contains(query) ?? false))
           .toList();
-    } else {
-      return widget.components
-          .where((component) =>
-              component.id.toLowerCase().contains(query) ||
-              (component.type.toLowerCase().contains(query)) ||
-              (component.value?.toLowerCase().contains(query) ?? false))
-          .toList();
-    }
+    // } else {
+    //   return widget.components
+    //       .where((component) =>
+    //           component.id.toLowerCase().contains(query) ||
+    //           (component.type.toLowerCase().contains(query)) ||
+    //           (component.value?.toLowerCase().contains(query) ?? false))
+    //       .toList();
+    // }
   }
 
   List<connectivity_core.Net> _filterNets(String query) {

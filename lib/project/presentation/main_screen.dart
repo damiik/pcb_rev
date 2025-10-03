@@ -181,7 +181,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
   Widget _buildLeftPanel() {
     return GlobalListPanel(
-      components: _state.project?.logicalComponents.values.toList() ?? [],
+      // components: _state.project?.logicalComponents.values.toList() ?? [],
       nets: _state.connectivity?.nets ?? [],
       onComponentSelected: (component) => _dispatch(SelectComponentAction(component)),
       onNetSelected: (net) => _dispatch(SelectNetAction(net)),

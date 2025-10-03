@@ -41,7 +41,7 @@ typedef Project = ({
   String name,
   DateTime lastUpdated,
   // Logical Model
-  Map<String, LogicalComponent> logicalComponents,
+  // Map<String, LogicalComponent> logicalComponents,
   Map<String, LogicalNet> logicalNets,
   // Visual Models (Views)
   String? schematicFilePath, // Path to the KiCad schematic file
@@ -52,9 +52,9 @@ Map<String, dynamic> projectToJson(Project p) => {
   'id': p.id,
   'name': p.name,
   'lastUpdated': p.lastUpdated.toIso8601String(),
-  'logicalComponents': p.logicalComponents.map(
-    (k, v) => MapEntry(k, logicalComponentToJson(v)),
-  ),
+  // 'logicalComponents': p.logicalComponents.map(
+  //   (k, v) => MapEntry(k, logicalComponentToJson(v)),
+  // ),
   'logicalNets': p.logicalNets.map((k, v) => MapEntry(k, logicalNetToJson(v))),
   'schematicFilePath': p.schematicFilePath,
   'pcbImages': p.pcbImages.map((v) => pcbImageViewToJson(v)).toList(),
@@ -64,9 +64,9 @@ Project projectFromJson(Map<String, dynamic> json) => (
   id: json['id'] as String,
   name: json['name'] as String,
   lastUpdated: DateTime.parse(json['lastUpdated'] as String),
-  logicalComponents: (json['logicalComponents'] as Map<String, dynamic>).map(
-    (k, v) => MapEntry(k, logicalComponentFromJson(v as Map<String, dynamic>)),
-  ),
+  // logicalComponents: (json['logicalComponents'] as Map<String, dynamic>).map(
+  //   (k, v) => MapEntry(k, logicalComponentFromJson(v as Map<String, dynamic>)),
+  // ),
   logicalNets: (json['logicalNets'] as Map<String, dynamic>).map(
     (k, v) => MapEntry(k, logicalNetFromJson(v as Map<String, dynamic>)),
   ),
@@ -92,7 +92,7 @@ extension ProjectCopyWith on Project {
       id: id ?? this.id,
       name: name ?? this.name,
       lastUpdated: lastUpdated ?? this.lastUpdated,
-      logicalComponents: logicalComponents ?? this.logicalComponents,
+      // logicalComponents: logicalComponents ?? this.logicalComponents,
       logicalNets: logicalNets ?? this.logicalNets,
       schematicFilePath: schematicFilePath ?? this.schematicFilePath,
       pcbImages: pcbImages ?? this.pcbImages,
