@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' show File;
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show IntProperty, kIsWeb;
@@ -22,6 +22,7 @@ import 'package:pcb_rev/features/kicad/data/kicad_symbol_models.dart'
     as kicad_symbol_models;
 import '../../features/kicad/presentation/schematic_view.dart';
 import '../../features/kicad/domain/kicad_schematic_writer.dart';
+import '../../features/kicad/domain/kicad_schematic_parser.dart';
 import '../../features/ai_integration/data/mcp_server.dart';
 import 'package:uuid/uuid.dart';
 
@@ -29,6 +30,9 @@ import 'package:pcb_rev/features/connectivity/models/core.dart' as connectivity_
 import '../../features/connectivity/domain/connectivity_adapter.dart';
 import '../../features/connectivity/models/connectivity.dart';
 import '../../features/connectivity/api/netlist_api.dart' as netlist_api;
+
+import '../../debug/log_service.dart';
+import '../../debug/debug_console.dart';
 
 
 enum ViewMode { pcb, schematic }
@@ -58,14 +62,19 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   kicad_symbol_models.LibrarySymbol? _selectedLibrarySymbol;
   Connectivity? _connectivity;
   connectivity_core.Net? _selectedNet;
+  bool _showDebugConsole = true;
 
   @override
   void initState() {
     super.initState();
-    print('Initializing PCB Analyzer App...');
+    LogService.instance.info('Initializing PCB Analyzer App...');
     _initializeServer();
     _initializeProject();
-    _loadDefaultSymbolLibrary();
+    if (!kIsWeb) {
+      _loadDefaultSymbolLibrary();
+    } else {
+      LogService.instance.info('Running on web - skipping default file loading');
+    }
   }
 
   void _initializeServer() {
@@ -109,6 +118,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   void _loadDefaultSymbolLibrary() async {
     try {
       final libraryPath = 'test/kiProject1/example_kicad_symbols.kicad_sym';
+      LogService.instance.info('Loading default symbol library from: $libraryPath');
       final loader = KiCadLibrarySymbolLoader(libraryPath);
       await loader.loadAllLibrarySymbols(); // Pre-load symbols
       setState(() {
@@ -118,16 +128,19 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       // Try to load the default schematic
       _loadDefaultSchematic();
     } catch (e) {
-      print('Error loading default symbol library: $e');
+      LogService.instance.error('Error loading default symbol library: $e');
     }
   }
 
   Future<void> _loadDefaultSchematic() async {
     final defaultSchematicPath = 'test/kiProject1/kiProject1.kicad_sch';
+    LogService.instance.info('Loading default schematic from: $defaultSchematicPath');
     final file = File(defaultSchematicPath);
 
     if (await file.exists()) {
       await _loadSchematicFile(defaultSchematicPath);
+    } else {
+      LogService.instance.warning('Default schematic file not found at: $defaultSchematicPath');
     }
   }
 
@@ -215,44 +228,56 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
               tooltip: 'Save KiCad Schematic',
             ),
             IconButton(icon: Icon(Icons.share), onPressed: _exportNetlist),
+            IconButton(
+              icon: Icon(_showDebugConsole ? Icons.terminal : Icons.terminal_outlined),
+              onPressed: () => setState(() => _showDebugConsole = !_showDebugConsole),
+              tooltip: 'Toggle Debug Console',
+            ),
           ],
         ),
         body: Stack(
           children: [
-            Row(
+            Column(
               children: [
                 Expanded(
-                  flex: 1,
-                  child: GlobalListPanel(
-                    components:
-                        currentProject?.logicalComponents.values.toList() ??
-                            [],
-                    nets: _connectivity?.nets ?? [],
-                    onComponentSelected: _selectComponent,
-                    onNetSelected: (net) {
-                      setState(() {
-                        _selectedNet = net;
-                        _selectedSymbolInstance = null; // Clear other selections
-                        _selectedSymbolInstanceId = null;
-                      });
-                    },
-                    schematic: _loadedSchematic,
-                    onLibrarySymbolSelected: _selectLibrarySymbol,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 1,
+                        child: GlobalListPanel(
+                          components:
+                              currentProject?.logicalComponents.values.toList() ??
+                                  [],
+                          nets: _connectivity?.nets ?? [],
+                          onComponentSelected: _selectComponent,
+                          onNetSelected: (net) {
+                            setState(() {
+                              _selectedNet = net;
+                              _selectedSymbolInstance = null; // Clear other selections
+                              _selectedSymbolInstanceId = null;
+                            });
+                          },
+                          schematic: _loadedSchematic,
+                          onLibrarySymbolSelected: _selectLibrarySymbol,
+                        ),
+                      ),
+                      Expanded(flex: 5, child: _buildMainPanel()),
+                      Expanded(
+                        flex: 1,
+                        child: PropertiesPanel(  // create child PropertiesPanel with required callbacks  
+                          selectedSymbolInstance: _selectedSymbolInstance,
+                          selectedNet: _selectedNet,
+                          measurementState: measurementState,
+                          onMeasurementAdded: _addMeasurement,
+                          onComponentAdded: _addComponent,
+                          onAddSymbolInstance: _addSymbolInstance,
+                          onPropertyUpdated: _updateSymbolProperty,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Expanded(flex: 5, child: _buildMainPanel()),
-                Expanded(
-                  flex: 1,
-                  child: PropertiesPanel(  // create child PropertiesPanel with required callbacks  
-                    selectedSymbolInstance: _selectedSymbolInstance,
-                    selectedNet: _selectedNet,
-                    measurementState: measurementState,
-                    onMeasurementAdded: _addMeasurement,
-                    onComponentAdded: _addComponent,
-                    onAddSymbolInstance: _addSymbolInstance,
-                    onPropertyUpdated: _updateSymbolProperty,
-                  ),
-                ),
+                if (_showDebugConsole) const DebugConsole(),
               ],
             ),
             if (_dragging)
@@ -320,33 +345,30 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   }
 
   Future<void> _loadSchematic() async {
-    FilePickerResult? result;
-    if (!kIsWeb && Platform.isLinux) {
-      result = await FilePicker.platform.pickFiles(type: FileType.any);
-    } else {
-      result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['kicad_sch'],
-      );
-    }
+    LogService.instance.info('Opening file picker for KiCad schematic...');
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['kicad_sch'],
+      withData: true,
+    );
 
     if (result != null) {
-      final path = result.files.single.path!;
-      if (Platform.isLinux && !path.endsWith('.kicad_sch')) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Invalid file type. Please select a .kicad_sch file.',
-                ),
-              ),
-            );
-          }
-        });
-        return;
+      final file = result.files.single;
+
+      if (kIsWeb) {
+        LogService.instance.info('Loading schematic from picked file (web): ${file.name}');
+        final bytes = file.bytes;
+        if (bytes == null) {
+          LogService.instance.error('Failed to read file bytes on web');
+          return;
+        }
+        final content = utf8.decode(bytes);
+        await _loadSchematicFromContent(content, fileName: file.name, switchToView: true);
+      } else {
+        final path = file.path!;
+        LogService.instance.info('Loading schematic from path: $path');
+        await _loadSchematicFile(path, switchToView: true);
       }
-      await _loadSchematicFile(path, switchToView: true);
     }
   }
 
@@ -367,8 +389,50 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         }
         _updateConnectivity();
       });
+      LogService.instance.success('Schematic loaded successfully');
     } catch (e) {
-      print('Error loading schematic file: $e');
+      LogService.instance.error('Error loading schematic file: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading schematic: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadSchematicFromContent(
+    String content, {
+    String fileName = 'unknown',
+    bool switchToView = false,
+  }) async {
+    try {
+      LogService.instance.info('Loading schematic from file: $fileName');
+      final loader = KiCadSchematicLoader.fromContent(content);
+      final schematic = await loader.load();
+      setState(() {
+        _loadedSchematic = schematic;
+        if (switchToView) {
+          _currentView = ViewMode.schematic;
+        }
+        if (currentProject != null) {
+          currentProject = currentProject!.copyWith(schematicFilePath: fileName);
+        }
+        _updateConnectivity();
+      });
+      LogService.instance.success('Schematic loaded successfully');
+    } catch (e) {
+      LogService.instance.error('Error loading schematic: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading schematic: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -448,23 +512,23 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   }
 
   Future<void> _handleImageDrop(List<String> imagePaths) async {
-    print('[MainScreen] Handling image drop with paths: $imagePaths');
+    LogService.instance.info('Handling image drop with paths: $imagePaths');
     if (currentProject == null) {
-      print('[MainScreen] Project is null. Aborting drop.');
+      LogService.instance.warning('Project is null. Aborting drop.');
       return;
     }
 
     setState(() {
-      print('[MainScreen] Setting processing state to true.');
+      LogService.instance.info('Setting processing state to true.');
       _isProcessingImage = true;
     });
 
     try {
       var project = currentProject!;
       for (final path in imagePaths) {
-        print('[MainScreen] Processing path: $path');
+        LogService.instance.info('Processing path: $path');
         final enhancedPath = await image_processor.enhanceImage(path);
-        print('[MainScreen] Enhanced image path: $enhancedPath');
+        LogService.instance.info('Enhanced image path: $enhancedPath');
         final newImage = pcbImageViewFromJson({
           'id': DateTime.now().millisecondsSinceEpoch.toString(),
           'path': enhancedPath,
@@ -477,20 +541,20 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
         final updatedImages = List<PCBImageView>.from(project.pcbImages)
           ..add(newImage);
         project = project.copyWith(pcbImages: updatedImages);
-        print('[MainScreen] Added new image to project state.');
+        LogService.instance.info('Added new image to project state.');
       }
 
       setState(() {
         currentProject = project;
         _currentView = ViewMode.pcb; // Switch to pcb view to show the new image
         _currentImageIndex = project.pcbImages.length - 1;
-        print('[MainScreen] Final project state updated.');
+        LogService.instance.info('Final project state updated.');
       });
     } catch (e) {
-      print('[MainScreen] Error during image drop processing: $e');
+      LogService.instance.error('Error during image drop processing: $e');
     } finally {
       setState(() {
-        print('[MainScreen] Setting processing state to false.');
+        LogService.instance.info('Setting processing state to false.');
         _isProcessingImage = false;
       });
     }
@@ -701,7 +765,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
     // This function is now only for actual measurements.
     // The component addition logic has been moved to _addComponent.
     // For now, we'll just print a debug message.
-    print('Recording measurement: Type=$type, Value=$value');
+    LogService.instance.info('Recording measurement: Type=$type, Value=$value');
   }
 
   void _handleTap(Offset position) {
@@ -746,27 +810,41 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
   }
 
   Future<void> _openProject() async {
+    LogService.instance.info('Opening file picker for project file...');
     FilePickerResult? result = await FilePicker.platform.pickFiles(
-        // type: FileType.custom,
-        // allowedExtensions: ['pcbrev'],
-        );
+      withData: true,
+    );
 
     if (result != null) {
-      final file = File(result.files.single.path!);
-      if (!file.path.endsWith('.pcbrev')) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Invalid file type. Please select a .pcbrev file.'),
-              ),
-            );
-          }
-        });
-        return;
+      final pickedFile = result.files.single;
+      LogService.instance.info('Loading project from: ${pickedFile.name}');
+
+      String content;
+      if (kIsWeb) {
+        if (pickedFile.bytes == null) {
+          LogService.instance.error('Failed to read project file bytes on web');
+          return;
+        }
+        content = utf8.decode(pickedFile.bytes!);
+      } else {
+        final file = File(pickedFile.path!);
+        if (!file.path.endsWith('.pcbrev')) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Invalid file type. Please select a .pcbrev file.'),
+                ),
+              );
+            }
+          });
+          return;
+        }
+        content = await file.readAsString();
       }
-      final content = await file.readAsString();
+
       final project = projectFromJson(jsonDecode(content));
+      LogService.instance.info('Project loaded: ${project.name}');
       setState(() {
         currentProject = project;
         _currentImageIndex = 0;
@@ -775,6 +853,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       });
 
       if (project.schematicFilePath != null) {
+        LogService.instance.info('Project references schematic: ${project.schematicFilePath}');
         await _loadSchematicFile(project.schematicFilePath!);
       }
     }
@@ -782,8 +861,7 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
 
   Future<void> _exportNetlist() async {
     if (_connectivity == null) {
-      print('Cannot export netlist, connectivity not available.');
-      // Optionally, show a snackbar to the user
+      LogService.instance.warning('Cannot export netlist, connectivity not available.');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Connectivity data not available. Is a schematic loaded?'),
@@ -792,10 +870,9 @@ class _PCBAnalyzerAppState extends State<PCBAnalyzerApp> {
       return;
     }
     final netlist = netlist_api.getNetlist(_connectivity!.graph);
-    // Further export logic would go here (e.g., save to file)
-    print('--- Generated Netlist (JSON) ---');
-    print(netlist);
-    print('---------------------------------');
+    LogService.instance.info('--- Generated Netlist (JSON) ---');
+    LogService.instance.info(netlist);
+    LogService.instance.info('---------------------------------');
 
     // For demonstration, also show a dialog
     showDialog(

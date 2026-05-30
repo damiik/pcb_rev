@@ -1,8 +1,6 @@
 // KiCad Symbol Library Parser
 // Functional parser using Dart's modern pattern matching and immutable data structures
 
-import 'dart:io';
-import 'dart:convert';
 import '../data/kicad_symbol_models.dart';
 
 import 'kicad_sexpr_parser.dart';

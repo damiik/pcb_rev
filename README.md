@@ -377,6 +377,26 @@ Aby uruchomić aplikację, wykonaj następujące polecenia w katalogu głównym 
 flutter run -d linux # lub inne dostępne urządzenie, np. chrome, windows, macos
 ```
 
+### 6.1. Wersja Web (przez serwer Python)
+
+Wersja web nie może być uruchomiona bezpośrednio przez `flutter run -d chrome` w środowisku terminala bez GUI, ani przez otwarcie pliku `index.html` z dysku (wymagany jest serwer HTTP ze względu na CORS i Service Workers).
+
+1. Zbuduj aplikację web:
+
+```bash
+flutter build web --release
+```
+
+2. W katalogu `build/web` uruchom serwer HTTP Python:
+
+```bash
+python -m http.server 8080
+```
+
+3. Otwórz w przeglądarce: [http://localhost:8080](http://localhost:8080)
+
+Aplikacja automatycznie wyświetli konsolę debugowania na dole ekranu (można ją ukryć/pokazać przyciskiem `[>_]` w pasku narzędzi). Wszystkie komunikaty z procesu ładowania plików KiCad będą widoczne w tej konsoli, co ułatwia diagnozowanie problemów. Na wersji web pliki `.kicad_sch` i `.kicad_sym` są wczytywane bezpośrednio przez przeglądarkę z pominięciem systemu plików.
+
 ## 7. Dalszy Rozwój
 
 - **Rozbudowa analizy AI:** Implementacja rzeczywistej logiki analizy w `mcp_server` i integracja z modelem AI do inkrementalnej budowy schematu na podstawie analizy połączeń między komponentami.

@@ -1,6 +1,8 @@
-import 'dart:io';
+import 'dart:io' show File;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'kicad_symbol_models.dart';
 import '../domain/kicad_symbol_parser.dart';
+import '../../../debug/log_service.dart';
 
 /// Service for loading and caching KiCad symbol definitions
 class KiCadLibrarySymbolLoader {
@@ -59,6 +61,23 @@ class KiCadLibrarySymbolLoader {
     return _symbolCache;
   }
 
+  /// Create a loader from raw content (web-compatible).
+  factory KiCadLibrarySymbolLoader.fromContent(String content) {
+    LogService.instance.info('Parsing symbol library from content...');
+    final parseResult = KiCadParser.parseLibrary(content);
+    return parseResult.fold(
+      (library) {
+        LogService.instance
+            .success('Symbol library loaded with ${library.librarySymbols.length} symbols');
+        return KiCadLibrarySymbolLoader.fromLibrary(library);
+      },
+      (error) {
+        LogService.instance.error('Failed to parse symbol library: $error');
+        throw Exception('Failed to parse KiCad library: $error');
+      },
+    );
+  }
+
   /// Load the KiCad library file or return the in-memory one.
   Future<KiCadLibrary> _loadLibrary() async {
     if (_library != null) return _library!;
@@ -67,19 +86,31 @@ class KiCadLibrarySymbolLoader {
     }
 
     try {
+      if (kIsWeb) {
+        throw Exception(
+            'Cannot load from file path on web. Use KiCadLibrarySymbolLoader.fromContent() instead.');
+      }
+
       final file = File(_libraryPath!);
       if (!file.existsSync()) {
         throw Exception('Symbol library file not found at: $_libraryPath');
       }
 
+      LogService.instance.info('Loading symbol library from: $_libraryPath');
       final content = await file.readAsString();
       final parseResult = KiCadParser.parseLibrary(content);
 
       return parseResult.fold((library) {
         _library = library;
+        LogService.instance
+            .success('Symbol library loaded with ${library.librarySymbols.length} symbols');
         return library;
-      }, (error) => throw Exception('Failed to parse KiCad library: $error'));
+      }, (error) {
+        LogService.instance.error('Failed to parse KiCad library: $error');
+        throw Exception('Failed to parse KiCad library: $error');
+      });
     } catch (e) {
+      LogService.instance.error('Error loading KiCad library: $e');
       throw Exception('Error loading KiCad library: $e');
     }
   }
