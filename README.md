@@ -1,5 +1,7 @@
 # PCBRev: Asystent Inżynierii Odwrotnej PCB
 
+![Logo firmy](./doc/chrome_t8obAIJK9t.png)
+
 ## 1. Założenia Projektu
 
 PCBRev to aplikacja Flutter, której celem jest wspieranie inżynierii odwrotnej urządzeń elektronicznych. Umożliwia ona użytkownikom tworzenie schematów urządzeń na podstawie pomiarów fizycznych i analizy wizualnej płytek PCB, z wykorzystaniem wsparcia sztucznej inteligencji.
